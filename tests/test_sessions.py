@@ -58,6 +58,15 @@ class Parse(unittest.TestCase):
         self.assertEqual(sessions.localized(e, "Name", "C"), "Plain")
 
 
+class Quote(unittest.TestCase):
+    def test_greetd_joined_command_round_trips_through_sh(self):
+        import subprocess
+        argv = ["printf", "%s|", "a b", "it's", "$HOME", "`x`", "*", ""]
+        joined = "exec " + " ".join(sessions.greetd_cmd(argv))
+        out = subprocess.run(["/bin/sh", "-c", joined], capture_output=True, text=True, env={}).stdout
+        self.assertEqual(out, "a b|it's|$HOME|`x`|*||")
+
+
 class Find(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
@@ -86,6 +95,7 @@ class Find(unittest.TestCase):
         (s,) = self.find()
         self.assertEqual(s["id"], "wayfire")
         self.assertEqual(s["type"], "wayland")
+        self.assertEqual(s["argv"], ["wayfire"])
         self.assertEqual(s["cmd"], ["wayfire"])
         self.assertIn("XDG_SESSION_TYPE=wayland", s["env"])
         self.assertIn("XDG_CURRENT_DESKTOP=Wayfire:wlroots", s["env"])
@@ -136,7 +146,7 @@ class Find(unittest.TestCase):
         self.write("xsessions", "px", entry(Name="Plasma X", Exec="startplasma-x11"))
         self.assertEqual(self.find(), [])
         (s,) = self.find(x11_wrapper=["/usr/lib/mavenix-greeter/x11-session"])
-        self.assertEqual(s["cmd"], ["/usr/lib/mavenix-greeter/x11-session", "startplasma-x11"])
+        self.assertEqual(s["argv"], ["/usr/lib/mavenix-greeter/x11-session", "startplasma-x11"])
         self.assertIn("XDG_SESSION_TYPE=x11", s["env"])
 
     def test_sorted_by_name_with_preferred_first(self):

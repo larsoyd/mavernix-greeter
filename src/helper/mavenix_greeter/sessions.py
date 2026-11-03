@@ -1,4 +1,5 @@
 import os
+import shlex
 import stat
 from pathlib import Path
 
@@ -43,6 +44,11 @@ def split_exec(line):
     if not words:
         raise ValueError("empty command")
     return words
+
+
+def greetd_cmd(argv):
+    # greetd joins cmd with spaces and hands it to sh, so each word is quoted here
+    return [shlex.quote(w) for w in argv]
 
 
 def field_codes(word):
@@ -130,7 +136,7 @@ def read_session(path, kind, path_dirs, x11_wrapper, locale):
     if desktops:
         env.append("XDG_CURRENT_DESKTOP=" + ":".join(desktops))
     return {"id": path.stem, "name": localized(entry, "Name", locale) or path.stem,
-            "comment": localized(entry, "Comment", locale) or "", "type": kind, "cmd": cmd, "env": env}
+            "comment": localized(entry, "Comment", locale) or "", "type": kind, "argv": cmd, "cmd": greetd_cmd(cmd), "env": env}
 
 
 def find(data_dirs, path, owner=0, x11_wrapper=None, preferred=None, locale=None):
