@@ -1,4 +1,4 @@
-project('mavernix-greeter', version: '0.1.2', license: 'GPL-3.0-or-later', meson_version: '>=1.3.0')
+project('mavernix-greeter', version: '0.1.3', license: 'GPL-3.0-or-later', meson_version: '>=1.3.0')
 
 libdir = get_option('prefix') / get_option('libexecdir') / 'mavernix-greeter'
 datadir = get_option('prefix') / get_option('datadir') / 'mavernix-greeter'
