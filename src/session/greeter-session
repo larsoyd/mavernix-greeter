@@ -9,6 +9,14 @@ fallback=${MAVENIX_GREETER_FALLBACK:-$lib/text-greeter}
 
 log() { printf '[greeter-session] %s\n' "$*" >&2; }
 
+# the text login needs the terminal back, so keep it on 3 and 4
+exec 3>&1 4>&2
+fall_back() {
+  log "result=fallback reason=$1"
+  exec 1>&3 2>&4 3>&- 4>&-
+  exec "$fallback"
+}
+
 if [[ -t 1 ]]; then
   if command -v systemd-cat >/dev/null; then
     exec > >(exec systemd-cat -t mavenix-greeter) 2>&1
@@ -17,18 +25,23 @@ if [[ -t 1 ]]; then
   fi
 fi
 
-[[ -n ${XDG_RUNTIME_DIR:-} && -d $XDG_RUNTIME_DIR && -O $XDG_RUNTIME_DIR ]] || {
-  log "result=fallback reason=no_runtime_dir"
-  exec "$fallback"
-}
+[[ -n ${XDG_RUNTIME_DIR:-} && -d $XDG_RUNTIME_DIR && -O $XDG_RUNTIME_DIR ]] || fall_back no_runtime_dir
 run=$XDG_RUNTIME_DIR/mavenix-greeter
-if ! { rm -rf "$run" && mkdir -m 700 "$run"; }; then
-  log "result=fallback reason=run_dir"
-  exec "$fallback"
-fi
+{ rm -rf "$run" && mkdir -m 700 "$run"; } || fall_back run_dir
 
+# an imported look that never reached a login three times running is set aside
+tries_file=$state/greeter/tries
+tries=$(cat "$tries_file" 2>/dev/null)
+[[ $tries =~ ^[0-9]+$ ]] || tries=0
 theme=$share/themes/neutral
-[[ -r $state/theme/current/theme.json ]] && theme=$state/theme/current
+if [[ -r $state/theme/current/theme.json ]]; then
+  if (( tries < 3 )); then
+    theme=$(readlink -f "$state/theme/current")
+  else
+    log "theme=neutral reason=imported_theme_failed tries=$tries"
+  fi
+fi
+echo $((tries + 1)) > "$tries_file" 2>/dev/null
 export MAVENIX_GREETER_THEME_DIR=$theme
 export MAVENIX_GREETER_HELPER=$lib/helper
 export MAVENIX_GREETER_STATUS=$run/status
@@ -47,10 +60,8 @@ fi
 main=$(timeout 10 python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1])).get("display",{}).get("main_output",""))' \
   "$theme/theme.json" 2>/dev/null) && export MAVENIX_GREETER_MAIN_OUTPUT=$main
 
-if ! timeout 10 "$lib/helper" compositor --theme-dir "$theme" --client "$lib/run-greeter" > "$run/wayfire.ini"; then
-  log "result=fallback reason=compositor_config"
-  exec "$fallback"
-fi
+timeout 10 "$lib/helper" compositor --theme-dir "$theme" --client "$lib/run-greeter" > "$run/wayfire.ini" \
+  || fall_back compositor_config
 
 started=$(date +%s%N)
 # the compositor keeps this pid through exec, its clients need it to stop it
@@ -68,7 +79,7 @@ wait "$wf" 2>/dev/null
 rc=$?
 status=$(cat "$run/status" 2>/dev/null || echo none)
 log "compositor_exit=$rc status=$status ms=$(( ($(date +%s%N) - started) / 1000000 ))"
+[[ $status == launched || $status == shown ]] && echo 0 > "$tries_file" 2>/dev/null
 [[ $status == launched ]] && exit 0
 (( stopping )) && exit 0
-log "result=fallback reason=greeter_$status"
-exec "$fallback"
+fall_back "greeter_$status"

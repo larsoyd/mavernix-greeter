@@ -19,7 +19,10 @@ stop_compositor() {
   fi
 }
 
+alive() { [[ $(cat "/proc/$wf/comm" 2>/dev/null) == "${MAVENIX_GREETER_COMPOSITOR_COMM:-wayfire}" ]]; }
+
 for (( i = 1; i <= tries; i++ )); do
+  alive || { log "result=compositor_gone try=$i"; exit 0; }
   : > "$status"
   qs -p "$share/greeter"
   rc=$?
@@ -27,6 +30,12 @@ for (( i = 1; i <= tries; i++ )); do
     log "result=launched try=$i rc=$rc"
     stop_compositor
     exit 0
+  fi
+  alive || { log "result=compositor_gone rc=$rc"; exit 0; }
+  if [[ $(cat "$status" 2>/dev/null) == no_sessions ]]; then
+    log "result=no_sessions"
+    stop_compositor
+    exit 1
   fi
   log "result=crashed rc=$rc try=$i"
   sleep 1

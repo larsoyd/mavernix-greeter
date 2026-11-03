@@ -84,6 +84,8 @@ class Import(unittest.TestCase):
         snapshot(self.inbox)
         self.run_import()
         first = self.installed().resolve()
+        (self.inbox / "snapshot/accounts").mkdir()
+        (self.inbox / "snapshot/accounts/ada.png").write_bytes(PNG)
         r = self.run_import()
         self.assertEqual(r.problem, "")
         self.assertNotEqual(self.installed().resolve(), first)
@@ -165,6 +167,71 @@ class Import(unittest.TestCase):
         self.assertEqual((self.installed() / "theme.json").read_text(), json.dumps(
             {"schema": "mavenix-greeter.theme", "version": 1, "id": "a", "background": {"image": "background.jpg"}},
             indent=1, sort_keys=True) + "\n")
+
+
+class Hostile(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        self.dest = self.root / "theme"
+
+    def stream(self, members, links=()):
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w") as t:
+            for name, data in members:
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                t.addfile(info, io.BytesIO(data))
+            for name, target in links:
+                info = tarfile.TarInfo(name)
+                info.type = tarfile.SYMTYPE
+                info.linkname = target
+                t.addfile(info)
+        buf.seek(0)
+        return buf
+
+    def test_entry_count_capped(self):
+        members = [(f"accounts/u{i}.png", PNG) for i in range(sync.MAX_ENTRIES + 1)]
+        with self.assertRaisesRegex(ValueError, "entries"):
+            sync.read_stream(self.stream(members))
+
+    def test_skipped_names_also_count(self):
+        members = [(f"junk/{i}", b"x") for i in range(sync.MAX_ENTRIES + 1)]
+        with self.assertRaisesRegex(ValueError, "entries"):
+            sync.read_stream(self.stream(members))
+
+    def test_deep_json_refused_not_crashing(self):
+        deep = b"[" * 100000 + b"]" * 100000
+        theme, problem = sync.check_theme({"theme.json": deep})
+        self.assertIsNone(theme)
+        self.assertIn("theme.json", problem)
+
+    def test_file_and_link_with_one_name_installs_the_file(self):
+        theme = json.loads(json.dumps(THEME))
+        files = {"background.jpg": JPG, "cursors/S/cursors/a": XCUR, "cursors/S/cursors/b": XCUR}
+        new = sync.install(self.dest, theme, files, {"cursors/S/cursors/a": "b"})
+        self.assertFalse((new / "cursors/S/cursors/a").is_symlink())
+
+    def test_failed_install_leaves_nothing_behind(self):
+        theme = json.loads(json.dumps(THEME))
+        with self.assertRaises(Exception):
+            sync.install(self.dest, theme, {"background.jpg": JPG, "x/../../escape": b"1"}, {})
+        self.assertEqual([p.name for p in self.dest.iterdir() if p.name.startswith("snap-")], [])
+
+    def test_same_content_not_installed_twice(self):
+        inbox = self.root / "inbox"
+        snapshot(inbox)
+        reader = [sys.executable, "-I", str(Path(sync.__file__).with_name("reader.py"))]
+        first = sync.import_snapshot(inbox / "snapshot", self.dest, reader=reader)
+        again = sync.import_snapshot(inbox / "snapshot", self.dest, reader=reader)
+        self.assertEqual(again.problem, "")
+        self.assertEqual(again.installed, None)
+        self.assertEqual(self.dest.joinpath("current").resolve(), first.installed)
+
+    def test_reset_empties_but_keeps_the_folder(self):
+        sync.install(self.dest, json.loads(json.dumps(THEME)), {"background.jpg": JPG}, {})
+        sync.reset(self.dest)
+        self.assertTrue(self.dest.is_dir())
+        self.assertEqual(list(self.dest.iterdir()), [])
 
 
 class Stream(unittest.TestCase):

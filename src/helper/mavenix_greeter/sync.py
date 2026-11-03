@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import re
@@ -11,6 +12,7 @@ from pathlib import Path
 SCHEMA = "mavenix-greeter.theme"
 VERSION = 1
 TOTAL = 160 * 1024 * 1024
+MAX_ENTRIES = 8000
 NAME = r"[A-Za-z0-9_][A-Za-z0-9_.+@ -]{0,95}"
 RULES = [
     ("theme", re.compile(r"theme\.json"), "json"),
@@ -49,7 +51,9 @@ def content_ok(kind, data):
 def read_stream(stream):
     files, links, skipped, total = {}, {}, [], 0
     with tarfile.open(fileobj=stream, mode="r|") as tar:
-        for m in tar:
+        for count, m in enumerate(tar, 1):
+            if count > MAX_ENTRIES:
+                raise ValueError(f"more than {MAX_ENTRIES} entries")
             rule = rule_for(m.name)
             if rule and m.issym() and rule[0] == "cursors":
                 links[m.name] = m.linkname
@@ -71,7 +75,7 @@ def read_stream(stream):
 def check_theme(files):
     try:
         theme = json.loads(files["theme.json"])
-    except (KeyError, ValueError):
+    except (KeyError, ValueError, RecursionError):
         return None, "theme.json missing or unreadable"
     if not isinstance(theme, dict) or theme.get("schema") != SCHEMA:
         return None, "theme.json schema"
@@ -84,28 +88,46 @@ def check_theme(files):
     return theme, ""
 
 
-def write(path, data):
+def write(path, data, inside):
+    if not path.resolve().is_relative_to(inside.resolve()):
+        raise ValueError(f"{path} leaves the snapshot")
     path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
     with open(path, "xb") as f:
         f.write(data)
     os.chmod(path, 0o644)
 
 
-def install(dest, theme, files, links):
-    dest.mkdir(mode=0o755, parents=True, exist_ok=True)
-    new = dest / f"snap-{time.time_ns()}"
-    new.mkdir(mode=0o755)
+def digest(theme, files, links):
+    h = hashlib.sha256(json.dumps([theme, sorted(links.items())], sort_keys=True).encode())
+    for name, data in sorted(files.items()):
+        h.update(name.encode() + b"\0" + hashlib.sha256(data).digest())
+    return h.hexdigest()
+
+
+def fill(new, theme, files, links):
     files = {**files, "theme.json": (json.dumps(theme, indent=1, sort_keys=True) + "\n").encode()}
     for name, data in files.items():
-        write(new / name, data)
+        write(new / name, data, new)
     for p in new.rglob("*"):
         if p.is_dir():
             os.chmod(p, 0o755)
     os.chmod(new, 0o755)
     for name, target in links.items():
-        if f"{name.rsplit('/', 1)[0]}/{target}" in files:
+        if name not in files and f"{name.rsplit('/', 1)[0]}/{target}" in files:
             (new / name).parent.mkdir(mode=0o755, parents=True, exist_ok=True)
             os.symlink(target, new / name)
+
+
+def install(dest, theme, files, links):
+    dest.mkdir(mode=0o755, parents=True, exist_ok=True)
+    new = dest / f"snap-{time.time_ns()}"
+    new.mkdir(mode=0o755)
+    try:
+        fill(new, theme, files, links)
+        write(new / ".digest", (digest(theme, files, links) + "\n").encode(), new)
+    except BaseException:
+        shutil.rmtree(new)
+        raise
     tmp = dest / ".current.tmp"
     if tmp.is_symlink() or tmp.exists():
         tmp.unlink()
@@ -117,8 +139,23 @@ def install(dest, theme, files, links):
     return new
 
 
+def reset(dest):
+    for p in Path(dest).iterdir():
+        if p.is_symlink() or p.is_file():
+            p.unlink()
+        elif p.is_dir():
+            shutil.rmtree(p)
+
+
+def installed_digest(dest):
+    try:
+        return (Path(dest) / "current" / ".digest").read_text().strip()
+    except OSError:
+        return ""
+
+
 def import_snapshot(snapshot, dest, reader):
-    proc = subprocess.Popen(reader + [str(snapshot)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(reader + [str(snapshot)], stdout=subprocess.PIPE)
     try:
         files, links, skipped = read_stream(proc.stdout)
     except (tarfile.TarError, ValueError) as e:
@@ -139,4 +176,6 @@ def import_snapshot(snapshot, dest, reader):
     theme, problem = check_theme(files)
     if problem:
         return Result(problem, skipped, None)
+    if installed_digest(dest) == digest(theme, files, links):
+        return Result("", skipped, None)
     return Result("", skipped, install(Path(dest), theme, files, links))

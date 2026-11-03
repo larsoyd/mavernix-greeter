@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 NAME = re.compile(r"[A-Za-z0-9_-]{1,32}")
-MODE = re.compile(r"off|auto|highres|highrr|\d{2,5}x\d{2,5}(@\d{1,6}(\.\d{1,3})?)?")
+MODE = re.compile(r"auto|highres|highrr|\d{2,5}x\d{2,5}(@\d{1,6}(\.\d{1,3})?)?")
 POSITION = re.compile(r"-?\d{1,5},-?\d{1,5}")
 TRANSFORMS = {"normal", "90", "180", "270", "flipped", "flipped-90", "flipped-180", "flipped-270"}
 CURSOR = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_. -]{0,63}")
@@ -68,16 +68,29 @@ def system_keyboard(path):
 
 def pick_keyboard(theme, system):
     own = section(theme, "keyboard")
-    return own if own.get("layout") else system
+    chosen = {k: v for k, v in (own if own.get("layout") else system).items() if k != "options"}
+    if system.get("options"):
+        chosen["options"] = system["options"]
+    return chosen
 
 
 def drm_device(driver, root="/sys/class/drm"):
     if not driver or not NAME.fullmatch(driver):
         return ""
     for card in sorted(Path(root).glob("card[0-9]*")):
-        if Path(os.path.realpath(card / "device" / "driver")).name == driver:
+        if Path(os.path.realpath(card / "device" / "driver")).name == driver and connected(card):
             return f"/dev/dri/{card.name}"
     return ""
+
+
+def connected(card):
+    for status in card.parent.glob(f"{card.name}-*/status"):
+        try:
+            if status.read_text().strip() == "connected":
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def fontconfig(fonts_dir, cache_dir):

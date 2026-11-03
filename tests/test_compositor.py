@@ -44,7 +44,7 @@ class Ini(unittest.TestCase):
         self.assertEqual(c["core"]["plugins"].split(), ["autostart"])
         self.assertNotIn("output:DP-1]", c.sections())
         self.assertEqual(dict(c["output:DP-2"]), {})
-        self.assertEqual(c["output:DP-3"]["mode"], "off")
+        self.assertNotIn("mode", c["output:DP-3"])
 
     def test_cursor_from_theme_checked(self):
         c = self.build({"cursor": {"theme": "SeaLion", "size": 48}})
@@ -81,6 +81,13 @@ class Keyboard(unittest.TestCase):
         self.assertEqual(compositor.pick_keyboard({"keyboard": {"layout": "de"}}, {"layout": "no"})["layout"], "de")
         self.assertEqual(compositor.pick_keyboard({}, {"layout": "no"})["layout"], "no")
 
+    def test_options_only_from_the_system(self):
+        k = compositor.pick_keyboard({"keyboard": {"layout": "de", "options": "srvrkeys:none"}},
+                                     {"layout": "no", "options": "terminate:ctrl_alt_bksp"})
+        self.assertEqual(k["options"], "terminate:ctrl_alt_bksp")
+        k = compositor.pick_keyboard({"keyboard": {"layout": "de", "options": "srvrkeys:none"}}, {"layout": "no"})
+        self.assertNotIn("options", k)
+
 
 class Fonts(unittest.TestCase):
     def test_conf_adds_theme_fonts_and_private_cache(self):
@@ -103,7 +110,10 @@ class Drm(unittest.TestCase):
             (root / "drivers" / driver).mkdir(parents=True)
             (d / "driver").symlink_to(root / "drivers" / driver)
         (root / "card1-DP-1").mkdir()
+        (root / "card1-DP-1" / "status").write_text("connected\n")
         self.assertEqual(compositor.drm_device("nvidia", root), "/dev/dri/card1")
+        (root / "card1-DP-1" / "status").write_text("disconnected\n")
+        self.assertEqual(compositor.drm_device("nvidia", root), "")
         self.assertEqual(compositor.drm_device("i915", root), "")
         self.assertEqual(compositor.drm_device("", root), "")
         self.assertEqual(compositor.drm_device("../x", root), "")

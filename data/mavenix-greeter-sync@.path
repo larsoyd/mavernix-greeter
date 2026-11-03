@@ -3,6 +3,8 @@ Description=Watch the login screen look exported by %i
 
 [Path]
 PathChanged=/var/lib/mavenix-greeter/inbox/%i/ready
+TriggerLimitIntervalSec=60
+TriggerLimitBurst=4
 
 [Install]
 WantedBy=paths.target

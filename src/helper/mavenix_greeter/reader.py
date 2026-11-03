@@ -42,7 +42,13 @@ def walk(tar, base, rel, depth, count):
     return count
 
 
+def undumpable():
+    import ctypes
+    ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0)
+
+
 def main():
+    undumpable()
     base = sys.argv[1]
     st = os.lstat(base)
     if not stat.S_ISDIR(st.st_mode):

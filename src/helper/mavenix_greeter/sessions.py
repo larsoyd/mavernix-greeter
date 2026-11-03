@@ -106,17 +106,33 @@ def on_path(name, path):
     return None
 
 
-def trusted(path, owner):
+def read_trusted(path, owner):
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    try:
+        st = os.fstat(fd)
+        if (not stat.S_ISREG(st.st_mode) or st.st_uid != owner
+                or st.st_mode & (stat.S_IWGRP | stat.S_IWOTH) or st.st_size > MAX_ENTRY):
+            return None
+        return os.read(fd, MAX_ENTRY + 1).decode("utf-8", errors="replace")
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
+
+
+def trusted_dir(path, owner):
     try:
         st = os.lstat(path)
     except OSError:
         return False
-    return (stat.S_ISREG(st.st_mode) and st.st_uid == owner
-            and not st.st_mode & (stat.S_IWGRP | stat.S_IWOTH) and st.st_size <= MAX_ENTRY)
+    return stat.S_ISDIR(st.st_mode) and st.st_uid == owner and not st.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
 
 
-def read_session(path, kind, path_dirs, x11_wrapper, locale):
-    entry = parse_entry(path.read_text(encoding="utf-8", errors="replace"))
+def read_session(path, text, kind, path_dirs, x11_wrapper, locale):
+    entry = parse_entry(text)
     if truthy(entry, "Hidden") or truthy(entry, "NoDisplay") or "Exec" not in entry:
         return None
     try:
@@ -144,12 +160,13 @@ def find(data_dirs, path, owner=0, x11_wrapper=None, preferred=None, locale=None
     for sub, kind in KINDS:
         for base in data_dirs:
             d = Path(base) / sub
-            if not d.is_dir():
+            if not trusted_dir(d, owner):
                 continue
             for p in sorted(d.glob("*.desktop")):
-                if p.stem in found or not trusted(p, owner):
+                text = None if p.stem in found else read_trusted(p, owner)
+                if text is None:
                     continue
-                s = read_session(p, kind, path, x11_wrapper, locale)
+                s = read_session(p, text, kind, path, x11_wrapper, locale)
                 if s:
                     found[s["id"]] = s
     return sorted(found.values(), key=lambda s: (s["id"] != preferred, s["name"].casefold()))

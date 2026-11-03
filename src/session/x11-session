@@ -2,5 +2,7 @@
 # starts an X11 session for greetd on the current VT, the session command follows as arguments
 set -uo pipefail
 (( $# )) || { echo "[x11-session] refused reason=no_command" >&2; exit 2; }
+client=$(command -v -- "$1") || { echo "[x11-session] refused reason=not_found" >&2; exit 2; }
+shift
 vt=${XDG_VTNR:-1}
-exec startx "$@" -- ":$((vt - 1 + 0))" "vt$vt" -keeptty -nolisten tcp
+exec startx "$client" "$@" -- ":$((vt - 1 + 0))" "vt$vt" -keeptty -nolisten tcp

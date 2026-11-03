@@ -2,7 +2,6 @@ import argparse
 import os
 import pwd
 import re
-import shutil
 import stat
 import subprocess
 import sys
@@ -51,7 +50,7 @@ def main(argv=None):
         return 2
     inbox = STATE / "inbox"
     if args.action == "reset":
-        shutil.rmtree(STATE / "theme", ignore_errors=True)
+        sync.reset(STATE / "theme")
         log("result=reset")
         return 0
     if not args.user or not USER.fullmatch(args.user):
@@ -78,5 +77,8 @@ def main(argv=None):
     if r.problem:
         log(f"refused user={args.user} reason={r.problem!r} skipped={len(r.skipped)}")
         return 1
+    if r.installed is None:
+        log(f"result=unchanged user={args.user}")
+        return 0
     log(f"result=installed user={args.user} dir={r.installed.name} skipped={len(r.skipped)}")
     return 0

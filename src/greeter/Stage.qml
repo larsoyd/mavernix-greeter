@@ -27,6 +27,7 @@ FocusScope {
         running: Controller.usersLoaded && stage.width > 0 && !stage.settled
         onTriggered: {
             stage.settled = true
+            Controller.markShown()
             console.info(`[greeter] font requested=${JSON.stringify(probe.font.family)} used=${JSON.stringify(probe.fontInfo.family)}`)
         }
     }

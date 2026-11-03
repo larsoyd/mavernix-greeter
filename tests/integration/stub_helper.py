@@ -16,7 +16,7 @@ cmd = sys.argv[1]
 if cmd == "users":
     out = {"show_list": True, "users": users, "last": {}}
 elif cmd == "sessions":
-    out = {"sessions": sessions}
+    out = {"sessions": [] if os.environ.get("STUB_SESSIONS") == "none" else sessions}
 elif cmd == "power-caps":
     out = {"poweroff": True, "reboot": True, "suspend": False}
 else:

@@ -2,6 +2,7 @@
 """session_test.py OUT_DIR [case...]: runs the real greeter-session script in a private headless setup."""
 import json
 import os
+import pty
 import shutil
 import signal
 import socket
@@ -23,7 +24,7 @@ class Fail(Exception):
 
 def tree(tmp, greeter=True):
     lib, share, state = tmp / "lib", tmp / "share", tmp / "state"
-    for d in (lib, share / "themes", state):
+    for d in (lib, share / "themes", state / "greeter"):
         d.mkdir(parents=True)
     (share / "themes" / "neutral").symlink_to(REPO / "data/themes/neutral")
     if greeter:
@@ -34,7 +35,12 @@ def tree(tmp, greeter=True):
 case $1 in users|sessions|power-caps|remember|power) exec python3 {HERE}/stub_helper.py "$@";; esac
 PYTHONPATH={REPO}/src/helper exec python3 -c 'import sys; from mavenix_greeter import cli; sys.exit(cli.main(sys.argv[1:]))' "$@"
 """)
-    (lib / "text-greeter").write_text(f"#!/usr/bin/env bash\necho fallback >> {tmp}/fallback.txt\nsleep 0.2\n")
+    (lib / "text-greeter").write_text("#!/usr/bin/env bash\nt=n\n[[ -t 1 ]] && t=y\n"
+                                      f"echo fallback tty_out=$t >> {tmp}/fallback.txt\n"
+                                      "sleep 0.2\n")
+    (tmp / "bin").mkdir()
+    (tmp / "bin" / "systemd-cat").write_text(f"#!/usr/bin/env bash\ncat >> {tmp}/journal.txt\n")
+    (tmp / "bin" / "systemd-cat").chmod(0o755)
     (tmp / "wayfire-test").write_text("#!/usr/bin/env bash\n"
                                       "sed -i 's/^plugins = autostart$/plugins = autostart ipc stipc/' \"$2\"\n"
                                       "exec wayfire \"$@\"\n")
@@ -77,11 +83,18 @@ def alive(pid):
 
 
 class Case:
-    def __init__(self, name, tmp, greeter=True, compositor=None):
+    def __init__(self, name, tmp, greeter=True, compositor=None, tty=False, theme=False, tries=None, extra=None):
         self.name, self.tmp = name, tmp
         self.out = OUT / name
         self.out.mkdir(parents=True, exist_ok=True)
         lib, share, state = tree(tmp, greeter)
+        self.state = state
+        if theme:
+            (state / "theme").mkdir()
+            (state / "theme" / "snap-1").symlink_to(REPO / "data/themes/neutral", target_is_directory=True)
+            (state / "theme" / "current").symlink_to("snap-1")
+        if tries is not None:
+            (state / "greeter" / "tries").write_text(f"{tries}\n")
         self.rt = tmp / "rt"
         self.rt.mkdir(mode=0o700)
         self.sock = self.rt / "wf.sock"
@@ -97,13 +110,26 @@ class Case:
                    MAVENIX_GREETER_LIBDIR=str(lib), MAVENIX_GREETER_DATADIR=str(share),
                    MAVENIX_GREETER_STATEDIR=str(state), MAVENIX_GREETER_FALLBACK=str(lib / "text-greeter"),
                    MAVENIX_GREETER_COMPOSITOR=compositor or str(tmp / "wayfire-test"),
-                   STUB_RECORD=str(self.out / "helper.log"), WLR_DRM_DEVICES="none")
-        self.log = open(self.out / "session.log", "w")
-        self.proc = subprocess.Popen([lib / "greeter-session"], env=env, stdout=self.log, stderr=subprocess.STDOUT,
-                                     start_new_session=True)
+                   STUB_RECORD=str(self.out / "helper.log"), WLR_DRM_DEVICES="none",
+                   PATH=f"{tmp / 'bin'}:{os.environ['PATH']}", **(extra or {}))
+        if tty:
+            master, slave = pty.openpty()
+            self.master = master
+            self.proc = subprocess.Popen([lib / "greeter-session"], env=env, stdin=slave, stdout=slave, stderr=slave,
+                                         start_new_session=True)
+            os.close(slave)
+            self.journal = tmp / "journal.txt"
+        else:
+            self.log = open(self.out / "session.log", "w")
+            self.proc = subprocess.Popen([lib / "greeter-session"], env=env, stdout=self.log,
+                                         stderr=subprocess.STDOUT, start_new_session=True)
+            self.journal = self.out / "session.log"
 
     def text(self):
-        return (self.out / "session.log").read_text(errors="replace")
+        return self.journal.read_text(errors="replace") if self.journal.exists() else ""
+
+    def tries(self):
+        return (self.state / "greeter" / "tries").read_text().strip()
 
     def wait_for(self, what, pred, deadline):
         end = time.time() + deadline
@@ -136,6 +162,10 @@ class Case:
     def fallback_count(self):
         f = self.tmp / "fallback.txt"
         return f.read_text().count("fallback") if f.exists() else 0
+
+    def fallback_text(self):
+        f = self.tmp / "fallback.txt"
+        return f.read_text() if f.exists() else ""
 
 
 def case_launch(c):
@@ -173,6 +203,9 @@ def case_term(c):
     c.wait_for("prompt", lambda: "phase=prompt" in c.text(), 15)
     c.proc.send_signal(signal.SIGTERM)
     rc = c.finish(5)
+    time.sleep(1.5)
+    if "result=crashed" in c.text():
+        raise Fail("the greeter was restarted after its compositor was gone")
     if c.fallback_count() or alive(wf):
         raise Fail(f"rc={rc} fallback={c.fallback_count()} compositor_alive={alive(wf)}")
 
@@ -185,12 +218,51 @@ def case_kill(c):
     c.wait_for("compositor gone after its parent was killed", lambda: not alive(wf), 5)
 
 
+def case_fallback_keeps_terminal(c):
+    c.finish(25)
+    if "tty_out=y" not in c.fallback_text():
+        raise Fail(f"text login lost the terminal: {c.fallback_text()!r}")
+    if "result=fallback" not in c.text():
+        raise Fail("fallback reason not in the journal")
+
+
+def case_failed_theme_set_aside(c):
+    c.compositor_pid()
+    c.wait_for("set aside", lambda: "theme=neutral reason=imported_theme_failed" in c.text(), 10)
+    c.wait_for("shown", lambda: "[greeter] shown" in c.text(), 15)
+    c.proc.send_signal(signal.SIGTERM)
+    c.finish(5)
+    if c.tries() != "0":
+        raise Fail(f"a shown greeter did not clear the count tries={c.tries()} log={c.text()[-600:]!r}")
+
+
+def case_theme_used_below_limit(c):
+    c.compositor_pid()
+    c.wait_for("prompt", lambda: "phase=prompt" in c.text(), 15)
+    if "imported_theme_failed" in c.text():
+        raise Fail("theme set aside below the limit")
+    c.proc.send_signal(signal.SIGTERM)
+    c.finish(5)
+
+
+def case_no_sessions(c):
+    rc = c.finish(25)
+    if c.fallback_count() != 1 or "reason=greeter_no_sessions" not in c.text():
+        raise Fail(f"rc={rc} fallback={c.fallback_count()} log tail={c.text()[-300:]!r}")
+    if c.text().count("result=crashed"):
+        raise Fail("no sessions was retried as a crash")
+
+
 CASES = {
     "launch": (case_launch, {}),
     "qs_crashes": (case_qs_crashes, {"greeter": False}),
     "compositor_fails": (case_compositor_fails, {"compositor": "/bin/false"}),
     "term": (case_term, {}),
     "kill": (case_kill, {}),
+    "fallback_keeps_terminal": (case_fallback_keeps_terminal, {"greeter": False, "tty": True}),
+    "failed_theme_set_aside": (case_failed_theme_set_aside, {"theme": True, "tries": 3}),
+    "theme_used_below_limit": (case_theme_used_below_limit, {"theme": True, "tries": 2}),
+    "no_sessions": (case_no_sessions, {"extra": {"STUB_SESSIONS": "none"}}),
 }
 
 

@@ -27,6 +27,7 @@ Item {
         font.family: st.theme.fonts.family
         font.pixelSize: st.theme.fonts.size
         renderType: Text.QtRendering
+        textFormat: Text.PlainText
         visible: false
     }
 

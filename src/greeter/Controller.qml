@@ -77,6 +77,12 @@ Singleton {
         }
     }
 
+    function markShown() {
+        log("shown")
+        if (statusFile.path && phase !== "launched")
+            statusFile.setText("shown\n")
+    }
+
     function selectUser(name) {
         manual = false
         dispatch({ type: "select", user: name })
@@ -134,6 +140,15 @@ Singleton {
         onExited: code => {
             if (code !== 0)
                 root.powerProblem = action
+        }
+    }
+
+    Timer {
+        interval: root.theme.animation.fade_ms + 3000
+        running: root.phase === "leaving"
+        onTriggered: {
+            root.log("watchdog phase=leaving")
+            root.dispatch({ type: "faded" })
         }
     }
 
@@ -202,6 +217,12 @@ Singleton {
                     root.log("sessions problem=unreadable")
                 }
                 root.log(`sessions count=${root.sessions.length}`)
+                if (!root.sessions.length) {
+                    if (statusFile.path)
+                        statusFile.setText("no_sessions\n")
+                    Qt.quit()
+                    return
+                }
                 const remembered = root.sessions.find(s => s.id === root.last.session)
                 if (root.sessions.length)
                     root.chooseSession((remembered ?? root.sessions[0]).id)

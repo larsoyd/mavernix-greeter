@@ -132,6 +132,38 @@ class Find(unittest.TestCase):
         self.write("wayland-sessions", "b", entry(Name="B", Exec="wayfire"))
         self.assertEqual([s["id"] for s in self.find()], ["b"])
 
+    def test_unreadable_entry_skipped(self):
+        self.write("wayland-sessions", "a", entry(Name="A", Exec="wayfire"), mode=0o000)
+        self.write("wayland-sessions", "b", entry(Name="B", Exec="wayfire"))
+        self.assertEqual([s["id"] for s in self.find()], ["b"])
+
+    def test_bad_encoding_does_not_crash(self):
+        p = self.write("wayland-sessions", "a", "")
+        p.write_bytes(b"[Desktop Entry]\nName=\xff\xfe\nExec=wayfire\n")
+        self.assertEqual([s["id"] for s in self.find()], ["a"])
+
+    def test_file_owner_checked_on_its_own(self):
+        p = self.write("wayland-sessions", "a", entry(Name="A", Exec="wayfire"))
+        self.assertIsNotNone(sessions.read_trusted(p, self.uid))
+        self.assertIsNone(sessions.read_trusted(p, self.uid + 1))
+
+    def test_fifo_with_a_writer_refused(self):
+        d = self.root / "share" / "wayland-sessions"
+        d.mkdir(parents=True)
+        fifo = d / "f.desktop"
+        os.mkfifo(fifo, 0o644)
+        fd = os.open(fifo, os.O_RDWR)
+        try:
+            os.write(fd, entry(Name="F", Exec="wayfire").encode())
+            self.assertIsNone(sessions.read_trusted(fifo, self.uid))
+        finally:
+            os.close(fd)
+
+    def test_writable_folder_refused(self):
+        self.write("wayland-sessions", "a", entry(Name="A", Exec="wayfire"))
+        (self.root / "share" / "wayland-sessions").chmod(0o777)
+        self.assertEqual(self.find(), [])
+
     def test_oversized_refused(self):
         self.write("wayland-sessions", "a", entry(Name="A", Exec="wayfire") + "#" * 70000)
         self.assertEqual(self.find(), [])

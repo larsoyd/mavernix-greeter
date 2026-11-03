@@ -55,6 +55,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: (modelData.id === Controller.sessionId ? "✓ " : "   ") + modelData.name
                         color: hover.containsMouse ? "white" : "black"
+                        textFormat: Text.PlainText
                         font.family: chooser.theme.fonts.family
                         font.pixelSize: chooser.theme.fonts.size
                     }
