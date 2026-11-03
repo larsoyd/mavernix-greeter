@@ -30,6 +30,10 @@ class Inbox(unittest.TestCase):
         self.box.chmod(0o777)
         self.assertIn("inbox", sync_cli.check_inbox(self.box, "ada", self.me, root_uid=self.me))
 
+    def test_inbox_root_owned_by_another_refused(self):
+        (self.box / "ada").mkdir()
+        self.assertIn("inbox", sync_cli.check_inbox(self.box, "ada", self.me, root_uid=self.me + 1))
+
     def test_bad_user_name_refused(self):
         self.assertIn("name", sync_cli.check_inbox(self.box, "../etc", self.me, root_uid=self.me))
 
