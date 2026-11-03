@@ -184,9 +184,24 @@ def white_box(path):
     return min(xs), min(ys), max(xs), max(ys), w, h
 
 
+def fringe(path, box):
+    from PIL import Image
+    img = Image.open(path).convert("RGB").crop(box)
+    px = list(img.get_flattened_data()) if hasattr(img, "get_flattened_data") else list(img.getdata())
+    lit = [(r, g, b) for r, g, b in px if max(r, g, b) > 120]
+    return max((abs(r - b) for r, g, b in lit), default=-1), len(lit)
+
+
 def password_ok(run):
     run.wait(r"phase=prompt")
     settled_layout(run)
+    line = re.findall(r"\[greeter\] layout (.*)", run.text())[-1]
+    x, y, w, h = map(int, dict(kv.split("=", 1) for kv in line.split())["name"].split(","))
+    run.shot("name")
+    spread, lit = fringe(OUT / "name.png", (x, y, x + w, y + h))
+    print(f"[driver] name_fringe max_rb={spread} lit_px={lit}")
+    if lit < 20 or spread > 12:
+        raise Fail(f"name text is not grey antialiased max_rb={spread} lit_px={lit}")
     time.sleep(0.7)
     run.shot("prompt")
     x0, y0, x1, y1, w, h = white_box(OUT / "prompt.png")
@@ -292,6 +307,9 @@ def fail_start(run):
 
 
 def cancel_during_touch(run):
+    run.wait(r"users count=2")
+    settled_layout(run)
+    run.wf.key("KEY_ENTER")
     run.wait(r"phase=info")
     run.wf.key("KEY_ESC")
     run.wait(r"phase=pick from=info event=cancel")
@@ -379,7 +397,7 @@ SCENARIOS = {
     "expired": ("expired", expired, {}),
     "fail_start": ("fail_start", fail_start, {}),
     "pick_second_user": ("password", pick_second_user, {"STUB_USERS": "ada,bob"}),
-    "cancel_during_touch": ("u2f_then_password", cancel_during_touch, {}),
+    "cancel_during_touch": ("u2f_then_password", cancel_during_touch, {"STUB_USERS": "ada,bob"}),
     "unavailable": (None, unavailable, {}),
     "greetd_dies": ("password", greetd_dies, {"MAVERNIX_GREETER_WATCHDOG_MS": "3000"}),
     "two_outputs": ("password", two_outputs, {}),

@@ -7,11 +7,11 @@ FocusScope {
 
     readonly property var theme: Controller.theme
     readonly property real cy: height / 2
-    readonly property var entries: Controller.users.concat([{ name: "", full_name: qsTr("Other…"), avatar: "" }])
+    readonly property var entries: Controller.users.concat(Controller.offerOther ? [{ name: "", full_name: qsTr("Other…"), avatar: "" }] : [])
     readonly property bool listing: Controller.showList && Controller.users.length > 0
     readonly property bool chosen: Controller.manual || Controller.phase !== "pick" && Controller.phase !== "unavailable"
                                    || !listing
-    readonly property int chosenIndex: Controller.manual || !listing ? entries.length - 1
+    readonly property int chosenIndex: Controller.manual || !listing ? Math.max(0, entries.length - 1)
                                        : Math.max(0, entries.findIndex(u => u.name === Controller.auth.user))
     property int current: Math.max(0, Controller.users.findIndex(u => u.name === Controller.last.user))
     readonly property int per: Layout.perPage(width, theme.tile.width)
@@ -25,7 +25,8 @@ FocusScope {
         line: Math.ceil(probe.implicitHeight), users: Controller.users.length,
         messageLines: messageText.visible ? messageText.lineCount : 0, sessions: Controller.sessions.length,
         nameLines: Math.min(2, nameProbe.lineCount), sessionWidth: Math.ceil(chooser.width),
-        barWidth: Math.ceil(bar.implicitWidth), barHeight: Math.ceil(bar.implicitHeight), clockWidth: Math.ceil(clock.implicitWidth)
+        barWidth: Math.ceil(bar.implicitWidth), barHeight: Math.ceil(bar.implicitHeight), barLead: bar.lead,
+        clockWidth: Math.ceil(clock.implicitWidth), other: Controller.offerOther
     })
     readonly property var box: Layout.boxes(width, height, theme, Object.assign({ chosen: chosen }, measured))
     readonly property var chosenBox: Layout.boxes(width, height, theme, Object.assign({ chosen: true }, measured))
@@ -119,7 +120,7 @@ FocusScope {
     Keys.onReturnPressed: if (!chosen) choose(current)
     Keys.onEnterPressed: if (!chosen) choose(current)
     Keys.onSpacePressed: if (!chosen) choose(current)
-    Keys.onEscapePressed: if (chosen && listing) Controller.back()
+    Keys.onEscapePressed: if (chosen && listing && entries.length > 1) Controller.back()
 
     Connections {
         target: Controller
@@ -162,7 +163,7 @@ FocusScope {
                 user: stage.entries[at]
                 avatarSource: Controller.avatarFor(stage.entries[at])
                 highlighted: !stage.chosen && stage.activeFocus && at === stage.current
-                showBack: stage.chosen && mine && stage.listing
+                showBack: stage.chosen && mine && stage.listing && stage.entries.length > 1
                 opacity: stage.chosen && !mine ? 0 : 1
                 Component.onCompleted: if (mine) stage.chosenTile = this
                 onMineChanged: if (mine) stage.chosenTile = this
@@ -188,18 +189,8 @@ FocusScope {
             id: field
             asking: Controller.manual || !stage.listing && !Controller.auth.user
             focus: stage.chosen
-            visible: !spinner.running
         }
 
-        Spinner {
-            id: spinner
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: -13
-            width: 32
-            height: 32
-            running: ["verifying", "leaving", "launching"].includes(Controller.phase) || field.queued
-        }
     }
 
     ShadowText {
@@ -234,7 +225,9 @@ FocusScope {
     Clock {
         id: clock
         x: stage.box.clock.x
-        y: stage.box.clock.y
+        y: stage.box.clock.y + Math.round((stage.box.clock.h - height) / 2)
+        width: implicitWidth
+        height: implicitHeight
         theme: stage.theme
     }
 }

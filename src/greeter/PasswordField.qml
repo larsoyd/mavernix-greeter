@@ -82,6 +82,7 @@ FocusScope {
         verticalAlignment: Text.AlignVCenter
         text: box.placeholderText()
         visible: input.text === "" && !input.preeditText
+        renderType: Text.NativeRendering
         color: Theme.color(box.theme.colors.placeholder) ?? "gray"
         font: input.font
         elide: Text.ElideRight
@@ -90,8 +91,8 @@ FocusScope {
     TextInput {
         id: input
         anchors.fill: parent
-        anchors.leftMargin: 6
-        anchors.rightMargin: (go.visible || badge.visible) ? 30 : 10
+        anchors.leftMargin: 5
+        anchors.rightMargin: (go.visible || badge.visible || busy.running) ? 30 : 10
         anchors.topMargin: 3
         anchors.bottomMargin: 3
         verticalAlignment: TextInput.AlignVCenter
@@ -102,7 +103,8 @@ FocusScope {
         readOnly: !box.asking && !["prompt", "info", "starting", "failed", "error"].includes(box.phase)
         color: Theme.color(box.theme.colors.field_text) ?? "black"
         font.family: box.theme.fonts.family
-        font.pixelSize: box.theme.fonts.size
+        font.pixelSize: box.theme.fonts.field_size
+        renderType: Text.NativeRendering
         selectByMouse: false
         clip: true
         inputMethodHints: box.secret ? (Qt.ImhHiddenText | Qt.ImhSensitiveData | Qt.ImhNoPredictiveText) : Qt.ImhNone
@@ -116,7 +118,7 @@ FocusScope {
         anchors.right: parent.right
         anchors.rightMargin: Math.round((box.height - height) / 2)
         anchors.verticalCenter: parent.verticalCenter
-        visible: input.text !== "" || box.asking
+        visible: (input.text !== "" || box.asking) && !busy.running
         Accessible.role: Accessible.Button
         Accessible.name: qsTr("Log In")
 
@@ -161,7 +163,7 @@ FocusScope {
         anchors.right: parent.right
         anchors.rightMargin: 8
         anchors.verticalCenter: parent.verticalCenter
-        visible: box.failedBadge && !go.visible
+        visible: box.failedBadge && !go.visible && !busy.running
         color: Theme.color(box.theme.colors.error) ?? "#e0443e"
         Text {
             anchors.centerIn: parent
@@ -170,5 +172,16 @@ FocusScope {
             font.bold: true
             font.pixelSize: 11
         }
+    }
+
+    Spinner {
+        id: busy
+        width: 16
+        height: 16
+        anchors.right: parent.right
+        anchors.rightMargin: Math.round((box.height - height) / 2)
+        anchors.verticalCenter: parent.verticalCenter
+        color: "#7a7a7a"
+        running: ["verifying", "leaving", "launching"].includes(box.phase) || box.queued
     }
 }

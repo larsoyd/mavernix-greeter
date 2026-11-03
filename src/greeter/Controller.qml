@@ -25,6 +25,7 @@ Singleton {
     property var power: ({ poweroff: false, reboot: false, suspend: false })
     property string powerProblem: ""
     property bool manual: false
+    property bool offerOther: false
 
     readonly property string phase: auth.phase
     readonly property var currentUser: users.find(u => u.name === auth.user) ?? ({ name: auth.user, full_name: auth.user, avatar: "" })
@@ -193,6 +194,7 @@ Singleton {
                     const r = JSON.parse(text)
                     root.users = r.users
                     root.showList = r.show_list
+                    root.offerOther = r.offer_other === true
                     root.last = r.last
                 } catch (e) {
                     root.log("users problem=unreadable")

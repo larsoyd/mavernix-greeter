@@ -35,9 +35,10 @@ function rect(x, y, w, h) {
 function boxes(w, h, theme, s) {
     var t = theme.tile, cy = Math.round(h / 2), line = s.line || 16;
     var out = {};
-    out.clock = rect(w - 10 - s.clockWidth, 4, s.clockWidth, line);
-    out.bar = rect((w - s.barWidth) / 2, h - theme.layout.bar_bottom - s.barHeight, s.barWidth, s.barHeight);
-    var entries = (s.users || 0) + 1;
+    out.clock = rect(w - 18 - s.clockWidth, 0, s.clockWidth, 22);
+    var barX = s.barLead !== undefined ? w / 2 - s.barLead : (w - s.barWidth) / 2;
+    out.bar = rect(barX, h - theme.layout.bar_bottom - s.barHeight, s.barWidth, s.barHeight);
+    var entries = (s.users || 0) + (s.other ? 1 : 0);
     var count = s.chosen ? 1 : Math.min(perPage(w, t.width), entries);
     var top = cy + theme.layout.tile_top;
     var picture = Math.round((92 - theme.avatar.size) / 2);

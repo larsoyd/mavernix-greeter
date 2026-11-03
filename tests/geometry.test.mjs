@@ -14,7 +14,7 @@ const STATES = [
   { chosen: true, users: 1, messageLines: 0, sessions: 1 }, { chosen: true, users: 4, messageLines: 3, sessions: 3 },
   { chosen: true, users: 1, messageLines: 1, sessions: 2, nameLines: 2 },
 ];
-const text = { line: 17, sessionWidth: 181, barWidth: 263, barHeight: 57, clockWidth: 91 };
+const text = { line: 17, sessionWidth: 181, barWidth: 251, barHeight: 57, barLead: 115, clockWidth: 91, other: true };
 
 function overlap(a, b, gap) {
   return a.x < b.x + b.w + gap && b.x < a.x + a.w + gap && a.y < b.y + b.h + gap && b.y < a.y + a.h + gap;
@@ -59,6 +59,9 @@ test("the researched positions hold where they fit", () => {
   assert.equal(b.field.w, 164);
   assert.equal(b.bar.y + b.bar.h, 1080 - 35);
   assert.equal(b.avatar.y, 540 - 41 + 4);
+  assert.equal(b.bar.x + 115, 960, "the middle button sits on the screen centre");
+  assert.equal(b.clock.x + b.clock.w, 1920 - 18);
+  assert.deepEqual([b.clock.y, b.clock.h], [0, 22]);
 });
 
 test("a long message pushes the session chooser down rather than over it", () => {

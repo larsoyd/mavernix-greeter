@@ -31,6 +31,17 @@ class Main(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("plugins = autostart", out)
 
+    def test_other_offered_only_when_someone_is_hidden(self):
+        import pwd
+        me = pwd.getpwuid(__import__("os").getuid()).pw_name
+        conf = self.d / "g.toml"
+        conf.write_text("[users]\nhidden = []\n")
+        rc, out = call("--config", str(conf), "users")
+        self.assertEqual(json.loads(out)["offer_other"], not json.loads(out)["users"])
+        conf.write_text('[users]\nhidden = ["somebody-else"]\n')
+        rc, out = call("--config", str(conf), "users")
+        self.assertTrue(json.loads(out)["offer_other"])
+
     def test_remember_and_users_last(self):
         state = self.d / "last.json"
         rc, _ = call("--state", str(state), "remember", "ada", "wayfire")

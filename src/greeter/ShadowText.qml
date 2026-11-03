@@ -35,6 +35,7 @@ Item {
         maximumLineCount: label.maximumLineCount
         elide: label.elide
         textFormat: Text.PlainText
+        renderType: Text.NativeRendering
         color: st.shadowColor
         visible: st.blur <= 0
     }
@@ -60,6 +61,7 @@ Item {
             maximumLineCount: label.maximumLineCount
             elide: label.elide
             textFormat: Text.PlainText
+            renderType: Text.NativeRendering
             color: st.shadowColor
         }
     }
@@ -83,5 +85,7 @@ Item {
         font.family: st.theme.fonts.family
         font.pixelSize: st.theme.fonts.size
         textFormat: Text.PlainText
+        // grey antialiasing, the login window draws its text with font smoothing off
+        renderType: Text.NativeRendering
     }
 }

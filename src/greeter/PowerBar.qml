@@ -1,21 +1,31 @@
 import QtQuick
 import "Theme.js" as Theme
 
-Row {
+Item {
     id: bar
     readonly property var theme: Controller.theme
-    spacing: theme.layout.bar_gap
+    readonly property int pitch: 98
+    readonly property var shown: [
+        { action: "suspend", label: qsTr("Sleep") },
+        { action: "reboot", label: qsTr("Restart") },
+        { action: "poweroff", label: qsTr("Shut Down") }
+    ].filter(b => Controller.power[b.action] === true)
+    readonly property real firstWidth: repeater.count ? repeater.itemAt(0).width : 0
+    readonly property real lastWidth: repeater.count ? repeater.itemAt(repeater.count - 1).width : 0
+    // distance from the bar's left edge to the middle of the button group
+    readonly property int lead: Math.round(firstWidth / 2 + (shown.length - 1) * pitch / 2)
+
+    implicitWidth: shown.length ? Math.ceil(firstWidth / 2 + (shown.length - 1) * pitch + lastWidth / 2) : 0
+    implicitHeight: repeater.count ? repeater.itemAt(0).height : 0
 
     Repeater {
-        model: [
-            { action: "suspend", label: qsTr("Sleep") },
-            { action: "reboot", label: qsTr("Restart") },
-            { action: "poweroff", label: qsTr("Shut Down") }
-        ]
+        id: repeater
+        model: bar.shown
         Item {
             id: btn
             required property var modelData
-            visible: Controller.power[modelData.action] === true
+            required property int index
+            x: Math.round(bar.firstWidth / 2 + index * bar.pitch - width / 2)
             width: Math.max(label.implicitWidth, 34) + 4
             height: 36 + 4 + label.implicitHeight
             activeFocusOnTab: true

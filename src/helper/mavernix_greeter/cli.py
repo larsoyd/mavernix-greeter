@@ -133,7 +133,8 @@ def main(argv=None):
     if args.cmd == "users":
         found = users.listing(pwd.getpwall(), users.uid_limits("/etc/login.defs"), users.shells("/etc/shells"),
                               ICONS, hidden=tuple(conf["users"]["hidden"]))
-        out = {"show_list": conf["users"]["show_list"], "users": found, "last": recall(args.state)}
+        out = {"show_list": conf["users"]["show_list"], "offer_other": bool(conf["users"]["hidden"]) or not found,
+               "users": found, "last": recall(args.state)}
     elif args.cmd == "sessions":
         found = sessions.find(args.data_dir or DATA_DIRS, PATH, owner=0, x11_wrapper=x11_wrapper(),
                               preferred=conf["sessions"]["default"], locale=os.environ.get("LANG"))
