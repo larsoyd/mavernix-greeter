@@ -82,6 +82,18 @@ class Keyboard(unittest.TestCase):
         self.assertEqual(compositor.pick_keyboard({}, {"layout": "no"})["layout"], "no")
 
 
+class Fonts(unittest.TestCase):
+    def test_conf_adds_theme_fonts_and_private_cache(self):
+        conf = compositor.fontconfig("/var/lib/t/current/fonts", "/run/user/9/g/fc")
+        self.assertIn("<include ignore_missing=\"yes\">/etc/fonts/fonts.conf</include>", conf)
+        self.assertIn("<dir>/var/lib/t/current/fonts</dir>", conf)
+        self.assertIn("<cachedir>/run/user/9/g/fc</cachedir>", conf)
+
+    def test_markup_in_paths_refused(self):
+        with self.assertRaises(ValueError):
+            compositor.fontconfig("/x/<evil>", "/c")
+
+
 class Drm(unittest.TestCase):
     def test_card_by_driver(self):
         root = Path(tempfile.mkdtemp())

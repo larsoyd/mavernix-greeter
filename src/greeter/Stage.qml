@@ -25,7 +25,17 @@ FocusScope {
     Timer {
         interval: 50
         running: Controller.usersLoaded && stage.width > 0 && !stage.settled
-        onTriggered: stage.settled = true
+        onTriggered: {
+            stage.settled = true
+            console.info(`[greeter] font requested=${JSON.stringify(probe.font.family)} used=${JSON.stringify(probe.fontInfo.family)}`)
+        }
+    }
+
+    Text {
+        id: probe
+        visible: false
+        text: "Ag"
+        font.family: stage.theme.fonts.family
     }
 
     function choose(i) {

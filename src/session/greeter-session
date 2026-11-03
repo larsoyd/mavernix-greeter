@@ -37,6 +37,10 @@ export QS_DISABLE_CRASH_HANDLER=1 WLR_LOG=${WLR_LOG:-error}
 export XCURSOR_PATH=$theme/cursors:/usr/local/share/icons:/usr/share/icons
 unset DISPLAY WAYLAND_DISPLAY
 
+if timeout 10 "$lib/helper" fontconfig --theme-dir "$theme" --cache "$run/fontconfig" > "$run/fonts.conf"; then
+  export FONTCONFIG_FILE=$run/fonts.conf
+fi
+
 if [[ -z ${WLR_DRM_DEVICES:-} ]]; then
   drm=$(timeout 10 "$lib/helper" drm-device --theme-dir "$theme") && [[ -n $drm ]] && export WLR_DRM_DEVICES=$drm
 fi

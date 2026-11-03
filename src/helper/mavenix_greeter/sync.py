@@ -21,7 +21,7 @@ RULES = [
     ("cursors", re.compile(rf"cursors/{NAME}/cursors/{NAME}"), "xcursor"),
 ]
 LIMITS = {"theme": 1 << 20, "background": 48 << 20, "accounts": 4 << 20, "fonts": 48 << 20,
-          "index": 16 << 10, "cursors": 4 << 20}
+          "index": 16 << 10, "cursors": 16 << 20}
 MAGIC = {
     "image": (b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"RIFF"),
     "font": (b"\x00\x01\x00\x00", b"OTTO", b"true", b"ttcf", b"\x00\x00\x01\x00"),

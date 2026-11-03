@@ -122,6 +122,9 @@ def main(argv=None):
     d = sub.add_parser("drm-device")
     d.add_argument("--theme-dir", required=True)
     sub.add_parser("default-session")
+    f = sub.add_parser("fontconfig")
+    f.add_argument("--theme-dir", required=True)
+    f.add_argument("--cache", required=True)
     args = ap.parse_args(argv)
     conf = load_config(args.config)
     if args.cmd == "users":
@@ -140,6 +143,12 @@ def main(argv=None):
     elif args.cmd == "drm-device":
         driver = compositor.section(read_theme(args.theme_dir), "display").get("drm_driver")
         print(compositor.drm_device(driver if isinstance(driver, str) else ""))
+        return 0
+    elif args.cmd == "fontconfig":
+        fonts = Path(args.theme_dir) / "fonts"
+        if not fonts.is_dir():
+            return 1
+        sys.stdout.write(compositor.fontconfig(str(fonts), args.cache))
         return 0
     elif args.cmd == "default-session":
         found = sessions.find(args.data_dir or DATA_DIRS, PATH, owner=0, x11_wrapper=None,

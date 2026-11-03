@@ -78,3 +78,12 @@ def drm_device(driver, root="/sys/class/drm"):
         if Path(os.path.realpath(card / "device" / "driver")).name == driver:
             return f"/dev/dri/{card.name}"
     return ""
+
+
+def fontconfig(fonts_dir, cache_dir):
+    for p in (fonts_dir, cache_dir):
+        if not re.fullmatch(r"/[A-Za-z0-9_./-]*", p):
+            raise ValueError(f"unsafe path {p!r}")
+    return ('<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">\n<fontconfig>\n'
+            '  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>\n'
+            f"  <dir>{fonts_dir}</dir>\n  <cachedir>{cache_dir}</cachedir>\n</fontconfig>\n")
