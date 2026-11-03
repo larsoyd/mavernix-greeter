@@ -1,0 +1,11 @@
+# copy to /etc/mavenix-greeter/greeter.toml to change the defaults
+
+[users]
+# names left out of the user list
+hidden = []
+# false asks for a name instead of showing users
+show_list = true
+
+[sessions]
+# desktop entry id chosen when nobody logged in before
+default = "mavernix"

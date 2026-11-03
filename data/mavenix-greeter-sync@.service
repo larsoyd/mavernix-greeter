@@ -1,0 +1,16 @@
+[Unit]
+Description=Install the login screen look exported by %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/mavenix-greeter-sync import %i
+TimeoutStartSec=120
+UMask=0022
+ProtectSystem=strict
+ReadWritePaths=/var/lib/mavenix-greeter/theme
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+NoNewPrivileges=no
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_DAC_OVERRIDE CAP_CHOWN CAP_FOWNER

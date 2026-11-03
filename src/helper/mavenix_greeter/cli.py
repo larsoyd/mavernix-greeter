@@ -12,7 +12,7 @@ from pathlib import Path
 from . import compositor, sessions, users
 
 CONFIG = "/etc/mavenix-greeter/greeter.toml"
-STATE = "/var/lib/mavenix-greeter/last.json"
+STATE = "/var/lib/mavenix-greeter/greeter/last.json"
 ICONS = "/var/lib/AccountsService/icons"
 DATA_DIRS = ["/usr/local/share", "/usr/share"]
 PATH = ["/usr/local/bin", "/usr/bin"]

@@ -1,0 +1,7 @@
+#!/usr/bin/python3 -I
+import sys
+
+sys.path.insert(0, "@PYDIR@")
+from mavenix_greeter.@MODULE@ import main  # noqa: E402
+
+sys.exit(main())

@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch the login screen look exported by %i
+
+[Path]
+PathChanged=/var/lib/mavenix-greeter/inbox/%i/ready
+
+[Install]
+WantedBy=paths.target
