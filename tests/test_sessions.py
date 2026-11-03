@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from mavernix_greeter import sessions
@@ -133,9 +134,17 @@ class Find(unittest.TestCase):
         self.assertEqual([s["id"] for s in self.find()], ["b"])
 
     def test_unreadable_entry_skipped(self):
-        self.write("wayland-sessions", "a", entry(Name="A", Exec="wayfire"), mode=0o000)
+        bad = self.write("wayland-sessions", "a", entry(Name="A", Exec="wayfire"))
         self.write("wayland-sessions", "b", entry(Name="B", Exec="wayfire"))
-        self.assertEqual([s["id"] for s in self.find()], ["b"])
+        real_open = os.open
+
+        def refuse(path, *args, **kw):
+            if str(path) == str(bad):
+                raise PermissionError(13, "denied", str(path))
+            return real_open(path, *args, **kw)
+
+        with unittest.mock.patch("os.open", refuse):
+            self.assertEqual([s["id"] for s in self.find()], ["b"])
 
     def test_bad_encoding_does_not_crash(self):
         p = self.write("wayland-sessions", "a", "")
