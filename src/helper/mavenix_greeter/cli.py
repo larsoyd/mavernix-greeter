@@ -9,7 +9,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-from . import sessions, users
+from . import compositor, sessions, users
 
 CONFIG = "/etc/mavenix-greeter/greeter.toml"
 STATE = "/var/lib/mavenix-greeter/last.json"
@@ -17,6 +17,7 @@ ICONS = "/var/lib/AccountsService/icons"
 DATA_DIRS = ["/usr/local/share", "/usr/share"]
 PATH = ["/usr/local/bin", "/usr/bin"]
 X11_WRAPPER = "/usr/lib/mavenix-greeter/x11-session"
+KEYMAP = "/etc/X11/xorg.conf.d/00-keyboard.conf"
 NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.@-]{0,63}")
 POWER = {"poweroff": "PowerOff", "reboot": "Reboot", "suspend": "Suspend"}
 DEFAULTS = {"users": {"hidden": [], "show_list": True}, "sessions": {"default": "mavernix"}}
@@ -87,6 +88,14 @@ def power_caps(query=busctl_can):
     return caps
 
 
+def read_theme(theme_dir):
+    try:
+        data = json.loads((Path(theme_dir) / "theme.json").read_text())
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def x11_wrapper():
     if all(Path(p).exists() for p in (X11_WRAPPER, "/usr/bin/Xorg", "/usr/bin/xinit")):
         return [X11_WRAPPER]
@@ -107,6 +116,12 @@ def main(argv=None):
     r.add_argument("session")
     p = sub.add_parser("power")
     p.add_argument("action", choices=sorted(POWER))
+    c = sub.add_parser("compositor")
+    c.add_argument("--theme-dir", required=True)
+    c.add_argument("--client", required=True)
+    d = sub.add_parser("drm-device")
+    d.add_argument("--theme-dir", required=True)
+    sub.add_parser("default-session")
     args = ap.parse_args(argv)
     conf = load_config(args.config)
     if args.cmd == "users":
@@ -117,6 +132,22 @@ def main(argv=None):
         found = sessions.find(args.data_dir or DATA_DIRS, PATH, owner=0, x11_wrapper=x11_wrapper(),
                               preferred=conf["sessions"]["default"], locale=os.environ.get("LANG"))
         out = {"sessions": found}
+    elif args.cmd == "compositor":
+        theme = read_theme(args.theme_dir)
+        keyboard = compositor.pick_keyboard(theme, compositor.system_keyboard(KEYMAP))
+        sys.stdout.write(compositor.wayfire_ini(theme, keyboard, args.client))
+        return 0
+    elif args.cmd == "drm-device":
+        driver = compositor.section(read_theme(args.theme_dir), "display").get("drm_driver")
+        print(compositor.drm_device(driver if isinstance(driver, str) else ""))
+        return 0
+    elif args.cmd == "default-session":
+        found = sessions.find(args.data_dir or DATA_DIRS, PATH, owner=0, x11_wrapper=None,
+                              preferred=conf["sessions"]["default"])
+        if not found:
+            return 1
+        print(" ".join(found[0]["cmd"]))
+        return 0
     elif args.cmd == "power-caps":
         out = power_caps()
     elif args.cmd == "remember":

@@ -149,6 +149,13 @@ Singleton {
     }
 
     FileView {
+        id: statusFile
+        path: Quickshell.env("MAVENIX_GREETER_STATUS") ?? ""
+        blockWrites: true
+        printErrors: false
+    }
+
+    FileView {
         path: root.themeDir + "/theme.json"
         printErrors: false
         onLoaded: {
@@ -231,6 +238,7 @@ Singleton {
             root.dispatch({ type: "ready" })
         }
         function onLaunched() {
+            statusFile.setText("launched\n")
             root.dispatch({ type: "launched" })
         }
         function onError(error) {

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# started by the greeter compositor: runs the QML greeter, restarts it after a crash, then stops the compositor
+set -uo pipefail
+
+share=${MAVENIX_GREETER_DATADIR:-/usr/share/mavenix-greeter}
+status=${MAVENIX_GREETER_STATUS:?}
+wf=${MAVENIX_GREETER_WAYFIRE_PID:?}
+tries=${MAVENIX_GREETER_TRIES:-3}
+
+log() { printf '[run-greeter] %s\n' "$*" >&2; }
+
+stop_compositor() {
+  local comm
+  comm=$(cat "/proc/$wf/comm" 2>/dev/null)
+  if [[ $comm == "${MAVENIX_GREETER_COMPOSITOR_COMM:-wayfire}" ]]; then
+    kill -TERM "$wf"
+  else
+    log "stop refused pid=$wf comm=${comm:-gone}"
+  fi
+}
+
+for (( i = 1; i <= tries; i++ )); do
+  : > "$status"
+  qs -p "$share/greeter"
+  rc=$?
+  if [[ $(cat "$status" 2>/dev/null) == launched ]]; then
+    log "result=launched try=$i rc=$rc"
+    stop_compositor
+    exit 0
+  fi
+  log "result=crashed rc=$rc try=$i"
+  sleep 1
+done
+echo failed > "$status"
+stop_compositor
+exit 1
