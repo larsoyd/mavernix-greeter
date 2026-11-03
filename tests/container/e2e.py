@@ -112,6 +112,8 @@ def login(n, wrong_first=False):
     line = sessions()[n - 1]
     started = float(line.split()[0])
     say(f"round={n} submit_to_session_ms={(started - t0) * 1000:.0f} session={line.split(' ', 1)[1]}")
+    if "console_out=n" not in line:
+        raise Fail(f"the session writes to its console: {line}")
     if "user=ada" not in line or "type=wayland" not in line or "desktop=testsession" not in line:
         raise Fail(f"wrong session environment: {line}")
 

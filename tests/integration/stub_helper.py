@@ -24,6 +24,8 @@ elif cmd == "sessions":
     out = {"sessions": [] if os.environ.get("STUB_SESSIONS") == "none" else sessions}
 elif cmd == "power-caps":
     out = {"poweroff": True, "reboot": True, "suspend": False}
+    if os.environ.get("STUB_POWER") == "none":
+        out = {"poweroff": False, "reboot": False, "suspend": False}
 else:
     out = {"ok": True}
 print(json.dumps(out))

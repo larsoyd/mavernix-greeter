@@ -9,8 +9,9 @@ printf 'ada:%s\nbob:%s\n' "$pw" "$pw-bob" | chpasswd
 install -d -m 1777 /var/tmp/runs
 cat > /usr/local/bin/test-session <<'S'
 #!/usr/bin/env bash
-printf '%s user=%s type=%s desktop=%s class=%s\n' "$(date +%s.%N)" "$USER" "${XDG_SESSION_TYPE:-}" \
-  "${XDG_SESSION_DESKTOP:-}" "${XDG_SESSION_CLASS:-}" >> /var/tmp/runs/sessions.log
+if [ -t 1 ] || [ -t 2 ]; then tty=y; else tty=n; fi
+printf '%s user=%s type=%s desktop=%s class=%s console_out=%s\n' "$(date +%s.%N)" "$USER" "${XDG_SESSION_TYPE:-}" \
+  "${XDG_SESSION_DESKTOP:-}" "${XDG_SESSION_CLASS:-}" "$tty" >> /var/tmp/runs/sessions.log
 sleep 1
 S
 cat > /usr/share/wayland-sessions/testsession.desktop <<'S'

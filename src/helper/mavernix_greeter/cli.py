@@ -17,6 +17,7 @@ ICONS = "/var/lib/AccountsService/icons"
 DATA_DIRS = ["/usr/local/share", "/usr/share"]
 PATH = ["/usr/local/bin", "/usr/bin"]
 X11_WRAPPER = "/usr/lib/mavernix-greeter/x11-session"
+SESSION_WRAPPER = "/usr/lib/mavernix-greeter/session-wrap"
 KEYMAP = "/etc/X11/xorg.conf.d/00-keyboard.conf"
 NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.@-]{0,63}")
 POWER = {"poweroff": "PowerOff", "reboot": "Reboot", "suspend": "Suspend"}
@@ -137,7 +138,8 @@ def main(argv=None):
                "users": found, "last": recall(args.state)}
     elif args.cmd == "sessions":
         found = sessions.find(args.data_dir or DATA_DIRS, PATH, owner=0, x11_wrapper=x11_wrapper(),
-                              preferred=conf["sessions"]["default"], locale=os.environ.get("LANG"))
+                              preferred=conf["sessions"]["default"], locale=os.environ.get("LANG"),
+                              session_wrapper=SESSION_WRAPPER if os.access(SESSION_WRAPPER, os.X_OK) else None)
         out = {"sessions": found}
     elif args.cmd == "compositor":
         theme = read_theme(args.theme_dir)

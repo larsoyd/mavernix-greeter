@@ -49,6 +49,7 @@ Item {
                 anchors.topMargin: 4
                 theme: bar.theme
                 text: btn.modelData.label
+                font.pixelSize: bar.theme.fonts.label_size
                 shadowY: 1
                 shadowColor: Theme.color(bar.theme.colors.label_shadow) ?? "transparent"
                 color: Controller.powerProblem === btn.modelData.action ? (Theme.color(bar.theme.colors.error) ?? "pink")

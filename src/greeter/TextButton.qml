@@ -8,6 +8,7 @@ ShadowText {
     color: mouse.pressed ? (Theme.color(theme.colors.label_pressed) ?? "white") : (Theme.color(theme.colors.label) ?? "white")
     shadowColor: Theme.color(theme.colors.label_shadow) ?? "transparent"
     shadowY: 1
+    font.pixelSize: theme.fonts.label_size
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
     Accessible.name: text

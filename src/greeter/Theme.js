@@ -5,7 +5,7 @@ var VERSION = 1;
 var ASSET = /^[A-Za-z0-9_][A-Za-z0-9_.-]*(\/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$/;
 var RANGES = {
     "background.center_y": [0, 1], "background.radius_x": [0.1, 3], "background.radius_y": [0.1, 3],
-    "fonts.size": [6, 72], "fonts.field_size": [6, 72], "fonts.clock_size": [6, 72], "name.blur": [0, 16], "name.shadow_y": [-8, 8],
+    "fonts.size": [6, 72], "fonts.label_size": [6, 72], "fonts.field_size": [6, 72], "fonts.clock_size": [6, 72], "name.blur": [0, 16], "name.shadow_y": [-8, 8],
     "avatar.size": [16, 512], "tile.width": [60, 600], "tile.height": [60, 600],
     "field.width": [60, 800], "field.height": [12, 80], "field.radius": [0, 40],
     "layout.tile_top": [-400, 400], "layout.field_bottom": [-400, 600], "layout.bar_bottom": [0, 400],
@@ -19,7 +19,7 @@ function defaults() {
         schema: SCHEMA, version: VERSION, id: "neutral", name: "Neutral",
         background: { color: "#51535bff", color2: "#2d2d32ff", center_y: 0.382, radius_x: 0.6, radius_y: 0.688,
                       image: "", fit: "cover", veil: "#00000000" },
-        fonts: { family: "sans-serif", size: 13, field_size: 12, clock_size: 14 },
+        fonts: { family: "sans-serif", size: 15, label_size: 14, field_size: 14, clock_size: 15 },
         name: { shadow_y: 1, blur: 2, bold: false },
         colors: { text: "#ffffffff", text_shadow: "#000000a3", clock: "#ffffff8c", label: "#ffffff8c", label_pressed: "#f0f0f0ff",
                   label_shadow: "#00000066", field: "#ffffffff", field_top: "#eaeaeaff", field_border: "#00000033",

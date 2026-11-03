@@ -131,7 +131,7 @@ def trusted_dir(path, owner):
     return stat.S_ISDIR(st.st_mode) and st.st_uid == owner and not st.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
 
 
-def read_session(path, text, kind, path_dirs, x11_wrapper, locale):
+def read_session(path, text, kind, path_dirs, x11_wrapper, locale, session_wrapper=None):
     entry = parse_entry(text)
     if truthy(entry, "Hidden") or truthy(entry, "NoDisplay") or "Exec" not in entry:
         return None
@@ -152,10 +152,11 @@ def read_session(path, text, kind, path_dirs, x11_wrapper, locale):
     if desktops:
         env.append("XDG_CURRENT_DESKTOP=" + ":".join(desktops))
     return {"id": path.stem, "name": localized(entry, "Name", locale) or path.stem,
-            "comment": localized(entry, "Comment", locale) or "", "type": kind, "argv": cmd, "cmd": greetd_cmd(cmd), "env": env}
+            "comment": localized(entry, "Comment", locale) or "", "type": kind, "argv": cmd,
+            "cmd": greetd_cmd(([session_wrapper] if session_wrapper else []) + cmd), "env": env}
 
 
-def find(data_dirs, path, owner=0, x11_wrapper=None, preferred=None, locale=None):
+def find(data_dirs, path, owner=0, x11_wrapper=None, preferred=None, locale=None, session_wrapper=None):
     found = {}
     for sub, kind in KINDS:
         for base in data_dirs:
@@ -166,7 +167,7 @@ def find(data_dirs, path, owner=0, x11_wrapper=None, preferred=None, locale=None
                 text = None if p.stem in found else read_trusted(p, owner)
                 if text is None:
                     continue
-                s = read_session(p, text, kind, path, x11_wrapper, locale)
+                s = read_session(p, text, kind, path, x11_wrapper, locale, session_wrapper)
                 if s:
                     found[s["id"]] = s
     return sorted(found.values(), key=lambda s: (s["id"] != preferred, s["name"].casefold()))

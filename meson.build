@@ -6,7 +6,7 @@ pydir = libdir / 'python'
 
 install_data(
     'src/session/greeter-session', 'src/session/run-greeter', 'src/session/text-greeter',
-    'src/session/x11-session', 'tools/migrate',
+    'src/session/x11-session', 'src/session/session-wrap', 'tools/migrate',
     install_dir: libdir, install_mode: 'rwxr-xr-x')
 configure_file(input: 'src/helper/launcher.in', output: 'helper', configuration: {'PYDIR': pydir, 'MODULE': 'cli'},
     install_dir: libdir, install_mode: 'rwxr-xr-x')

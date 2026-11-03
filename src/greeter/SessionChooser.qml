@@ -57,7 +57,7 @@ Item {
                         color: hover.containsMouse ? "white" : "black"
                         textFormat: Text.PlainText
                         font.family: chooser.theme.fonts.family
-                        font.pixelSize: chooser.theme.fonts.size
+                        font.pixelSize: chooser.theme.fonts.label_size
                     }
                     MouseArea {
                         id: hover

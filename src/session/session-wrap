@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# greetd hands a session its console, so its output goes to the journal before anything can draw there
+if [[ -S /run/systemd/journal/stdout ]] && command -v systemd-cat >/dev/null; then
+  exec systemd-cat -t "${XDG_SESSION_DESKTOP:-session}" -- "$@"
+fi
+exec "$@" >/dev/null 2>&1

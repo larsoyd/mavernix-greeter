@@ -323,6 +323,15 @@ def cancel_during_touch(run):
     launched(run)
 
 
+def enter_picks_first_user(run):
+    run.wait(r"users count=2")
+    settled_layout(run)
+    run.wf.key("KEY_ENTER")
+    run.wait(r"phase=starting from=pick event=select", 5)
+    if "event=create user=ada" not in run.greetd_log():
+        raise Fail("Return did not choose the first user")
+
+
 def pick_second_user(run):
     run.wait(r"users count=2")
     settled_layout(run)
@@ -397,6 +406,7 @@ SCENARIOS = {
     "expired": ("expired", expired, {}),
     "fail_start": ("fail_start", fail_start, {}),
     "pick_second_user": ("password", pick_second_user, {"STUB_USERS": "ada,bob"}),
+    "enter_picks_first_user": ("password", enter_picks_first_user, {"STUB_USERS": "ada,bob", "STUB_POWER": "none"}),
     "cancel_during_touch": ("u2f_then_password", cancel_during_touch, {"STUB_USERS": "ada,bob"}),
     "unavailable": (None, unavailable, {}),
     "greetd_dies": ("password", greetd_dies, {"MAVERNIX_GREETER_WATCHDOG_MS": "3000"}),

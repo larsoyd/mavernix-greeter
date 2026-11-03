@@ -190,6 +190,14 @@ class Find(unittest.TestCase):
         self.assertEqual(s["argv"], ["/usr/lib/mavernix-greeter/x11-session", "startplasma-x11"])
         self.assertIn("XDG_SESSION_TYPE=x11", s["env"])
 
+    def test_every_session_starts_through_the_quiet_wrapper(self):
+        self.write("wayland-sessions", "w", entry(Name="W", Exec="wayfire --x"))
+        self.write("xsessions", "x", entry(Name="X", Exec="startplasma-x11"))
+        found = {s["id"]: s for s in self.find(x11_wrapper=["/x11"], session_wrapper="/wrap")}
+        self.assertEqual(found["w"]["cmd"], ["/wrap", "wayfire", "--x"])
+        self.assertEqual(found["x"]["cmd"], ["/wrap", "/x11", "startplasma-x11"])
+        self.assertEqual(found["w"]["argv"], ["wayfire", "--x"])
+
     def test_sorted_by_name_with_preferred_first(self):
         for n in ("zeta", "alpha", "mavernix"):
             self.write("wayland-sessions", n, entry(Name=n.title(), Exec="wayfire"))

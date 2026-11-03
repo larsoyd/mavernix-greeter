@@ -203,6 +203,7 @@ FocusScope {
         visible: text !== "" && stage.chosen
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.WordWrap
+        font.pixelSize: stage.theme.fonts.label_size
         color: Controller.auth.phase === "error" || Controller.auth.phase === "unavailable"
                || (Controller.auth.notes.length && Controller.auth.notes[Controller.auth.notes.length - 1].error)
                ? (Theme.color(stage.theme.colors.error) ?? "pink") : (Theme.color(stage.theme.colors.message) ?? "white")

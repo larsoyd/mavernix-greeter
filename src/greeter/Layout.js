@@ -39,7 +39,7 @@ function boxes(w, h, theme, s) {
     var barX = s.barLead !== undefined ? w / 2 - s.barLead : (w - s.barWidth) / 2;
     out.bar = rect(barX, h - theme.layout.bar_bottom - s.barHeight, s.barWidth, s.barHeight);
     var entries = (s.users || 0) + (s.other ? 1 : 0);
-    var count = s.chosen ? 1 : Math.min(perPage(w, t.width), entries);
+    var count = s.chosen ? 1 : Math.max(1, Math.min(perPage(w, t.width), entries));
     var top = cy + theme.layout.tile_top;
     var picture = Math.round((92 - theme.avatar.size) / 2);
     var parts = s.chosen ? [] : [["row", 0, 0, count * t.width, t.height]];
