@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# migrate preflight|stage|cutover|rollback|status: move the login screen to greetd and back
+set -uo pipefail
+
+lib=${MAVENIX_GREETER_LIBDIR:-/usr/lib/mavenix-greeter}
+share=${MAVENIX_GREETER_DATADIR:-/usr/share/mavenix-greeter}
+backups=${MAVENIX_GREETER_BACKUPS:-/var/backups/mavenix-greeter}
+units=/etc/systemd/system
+dm_link=$units/display-manager.service
+
+say() { printf '[migrate] %s\n' "$*"; }
+refuse() { say "refused: $*"; exit 1; }
+need_root() { (( EUID == 0 )) || refuse "run as root"; }
+
+current_dm() {
+  local target
+  target=$(readlink -f "$dm_link" 2>/dev/null) || return 1
+  [[ -n $target ]] && basename "$target"
+}
+
+latest_backup() {
+  local dirs=("$backups"/*/)
+  [[ -d ${dirs[-1]:-} ]] && printf '%s\n' "${dirs[-1]%/}"
+}
+
+check() {
+  local name=$1 good=$2 bad=$3
+  shift 3
+  if "$@" >/dev/null 2>&1; then
+    say "$name=$good"
+  else
+    say "$name=$bad"
+    problems=$((problems + 1))
+  fi
+}
+
+preflight() {
+  local dm sessions vts
+  problems=0
+  dm=$(current_dm) || dm=none
+  say "display_manager=$dm"
+  check greetd installed missing command -v greetd
+  check greeter_user present missing getent passwd greeter
+  check greeter installed missing test -x "$lib/greeter-session"
+  check text_fallback present missing sh -c 'command -v tuigreet || command -v agreety'
+  sessions=$(timeout 20 "$lib/helper" sessions 2>/dev/null \
+    | python3 -I -c 'import json,sys; print(len(json.load(sys.stdin)["sessions"]))' 2>/dev/null)
+  say "sessions=${sessions:-unreadable}"
+  [[ ${sessions:-0} -gt 0 ]] || problems=$((problems + 1))
+  vts=$(sed -n 's/^NAutoVTs=\([0-9]*\).*/\1/p' /etc/systemd/logind.conf /etc/systemd/logind.conf.d/*.conf 2>/dev/null | tail -1)
+  say "text_consoles=${vts:-6}"
+  [[ ${vts:-6} -gt 1 ]] || problems=$((problems + 1))
+  if [[ -e /etc/pam.d/greetd ]]; then say "pam_greetd=present"; else say "pam_greetd=missing"; fi
+  say "problems=$problems"
+  (( problems == 0 ))
+}
+
+stage() {
+  need_root
+  local pam_from="" stamp dir dm
+  while (( $# )); do
+    case $1 in
+      --pam-from) pam_from=$2; shift 2 ;;
+      *) refuse "unknown option $1" ;;
+    esac
+  done
+  [[ -z $pam_from || $pam_from =~ ^[a-z0-9_-]+$ ]] || refuse "bad pam service name"
+  [[ -z $pam_from || -f /etc/pam.d/$pam_from ]] || refuse "/etc/pam.d/$pam_from does not exist"
+  preflight >/dev/null || refuse "preflight has problems, run preflight to see them"
+  stamp=$(date +%Y%m%d-%H%M%S)
+  dir=$backups/$stamp
+  install -d -m 700 "$backups" "$dir" || refuse "cannot make $dir"
+  dm=$(current_dm) || dm=""
+  printf '%s\n' "$dm" > "$dir/display-manager"
+  for f in /etc/greetd/config.toml /etc/pam.d/greetd; do
+    [[ -e $f ]] && cp -a "$f" "$dir/$(basename "$f")"
+  done
+  install -d -m 755 /etc/greetd
+  install -m 644 "$share/greetd-config.toml" /etc/greetd/config.toml.new && mv /etc/greetd/config.toml.new /etc/greetd/config.toml
+  if [[ -n $pam_from ]]; then
+    cp "/etc/pam.d/$pam_from" /etc/pam.d/greetd.new && chmod 644 /etc/pam.d/greetd.new && mv /etc/pam.d/greetd.new /etc/pam.d/greetd
+  fi
+  python3 -I -c 'import sys, tomllib; c = tomllib.load(open(sys.argv[1], "rb")); assert c["default_session"]["user"] == "greeter"' \
+    /etc/greetd/config.toml || { restore "$dir"; refuse "written config does not parse, restored"; }
+  systemd-tmpfiles --create /usr/lib/tmpfiles.d/mavenix-greeter.conf || say "warning: tmpfiles failed"
+  say "result=staged backup=$dir previous=${dm:-none} pam_from=${pam_from:-package}"
+}
+
+restore() {
+  local dir=$1
+  for f in config.toml:/etc/greetd/config.toml greetd:/etc/pam.d/greetd; do
+    if [[ -e $dir/${f%%:*} ]]; then cp -a "$dir/${f%%:*}" "${f#*:}"; fi
+  done
+}
+
+cutover() {
+  need_root
+  local dir old
+  dir=$(latest_backup) || refuse "nothing staged"
+  grep -q mavenix-greeter /etc/greetd/config.toml 2>/dev/null || refuse "greetd is not staged"
+  old=$(cat "$dir/display-manager")
+  [[ $old == greetd.service ]] && { say "result=already"; return 0; }
+  if [[ -n $old ]]; then
+    systemctl disable "$old" || refuse "could not disable $old"
+  fi
+  if ! systemctl enable greetd.service; then
+    [[ -n $old ]] && systemctl enable "$old"
+    refuse "could not enable greetd, $old re-enabled"
+  fi
+  [[ $(current_dm) == greetd.service ]] || refuse "display-manager.service does not point at greetd"
+  say "result=switched from=${old:-none} to=greetd.service active_at=next_boot"
+}
+
+rollback() {
+  need_root
+  local dir old
+  dir=$(latest_backup) || refuse "no backup in $backups"
+  old=$(cat "$dir/display-manager")
+  restore "$dir"
+  if [[ $(current_dm) == greetd.service && -n $old && $old != greetd.service ]]; then
+    systemctl disable greetd.service || refuse "could not disable greetd"
+    systemctl enable "$old" || refuse "could not enable $old, enable it by hand from a text console"
+  fi
+  say "result=rolled_back to=${old:-none} backup=$dir active_at=next_boot"
+}
+
+case ${1:-} in
+  preflight) preflight ;;
+  stage) shift; stage "$@" ;;
+  cutover) cutover ;;
+  rollback) rollback ;;
+  status) say "display_manager=$(current_dm || echo none) backup=$(latest_backup || echo none)" ;;
+  *) echo "usage: migrate preflight|stage [--pam-from SERVICE]|cutover|rollback|status" >&2; exit 2 ;;
+esac

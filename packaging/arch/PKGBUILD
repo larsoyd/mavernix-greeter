@@ -1,0 +1,32 @@
+pkgname=mavenix-greeter
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Login screen for greetd, drawn by Quickshell inside its own Wayfire compositor"
+arch=(any)
+url="https://github.com/larsoyd/mavenix-greeter"
+license=(GPL-3.0-or-later)
+depends=(greetd greetd-agreety quickshell wayfire python util-linux bash systemd)
+makedepends=(meson git)
+checkdepends=(nodejs)
+optdepends=('greetd-tuigreet: a friendlier text login when the graphical one cannot start'
+            'mavernix: gives the login screen the look of the desktop'
+            'xorg-xinit: X11 sessions')
+backup=(etc/mavenix-greeter/greeter.toml)
+install=mavenix-greeter.install
+source=("$pkgname::git+$url.git#tag=v$pkgver")
+sha256sums=('SKIP')
+
+build() {
+  arch-meson "$pkgname" build
+  meson compile -C build
+}
+
+check() {
+  meson test -C build --print-errorlogs
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+  install -Dm644 "$pkgname/data/pam/greetd-greeter" "$pkgdir/usr/lib/pam.d/greetd-greeter"
+  install -Dm644 "$pkgname/data/greeter.toml" "$pkgdir/etc/mavenix-greeter/greeter.toml"
+}
