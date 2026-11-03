@@ -19,14 +19,18 @@ jobs:
         run: |
           meson setup build --prefix=/usr --libexecdir=lib
           meson test -C build --print-errorlogs
-      - name: greeter
+      - name: test user
         run: |
-          bash tests/integration/run_all.sh "$RUNNER_TEMP/greeter"
+          useradd -m tester
+          chown -R tester "$GITHUB_WORKSPACE"
+          install -d -o tester "$RUNNER_TEMP/out"
+      - name: greeter
+        run: runuser -u tester -- bash tests/integration/run_all.sh "$RUNNER_TEMP/out/greeter"
       - name: session
-        run: bash tests/integration/session_run.sh "$RUNNER_TEMP/session"
+        run: runuser -u tester -- bash tests/integration/session_run.sh "$RUNNER_TEMP/out/session"
       - name: logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: logs
-          path: ${{ runner.temp }}
+          path: ${{ runner.temp }}/out
