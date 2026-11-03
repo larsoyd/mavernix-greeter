@@ -16,10 +16,10 @@ export XDG_RUNTIME_DIR=$rt HOME=$home XDG_CONFIG_HOME=$home/c XDG_DATA_HOME=$hom
 export _WAYFIRE_SOCKET=$rt/wf.sock WLR_BACKENDS=headless WLR_RENDERER=${WLR_RENDERER:-pixman}
 export WLR_HEADLESS_OUTPUTS=${OUTPUTS:-1} WLR_LIBINPUT_NO_DEVICES=1 PULSE_SERVER=unix:/nonexistent
 unset DISPLAY WAYLAND_DISPLAY WAYLAND_SOCKET
-export MAVENIX_GREETER_HELPER=$here/stub_helper.py STUB_RECORD=$out/helper.log
-export MAVENIX_GREETER_THEME_DIR=${THEME_DIR:-$repo/data/themes/neutral}
-if PYTHONPATH=$repo/src/helper python3 -c 'import sys; from mavenix_greeter import cli; sys.exit(cli.main(sys.argv[1:]))' \
-  fontconfig --theme-dir "$MAVENIX_GREETER_THEME_DIR" --cache "$rt/fontconfig" > "$rt/fonts.conf"; then
+export MAVERNIX_GREETER_HELPER=$here/stub_helper.py STUB_RECORD=$out/helper.log
+export MAVERNIX_GREETER_THEME_DIR=${THEME_DIR:-$repo/data/themes/neutral}
+if PYTHONPATH=$repo/src/helper python3 -c 'import sys; from mavernix_greeter import cli; sys.exit(cli.main(sys.argv[1:]))' \
+  fontconfig --theme-dir "$MAVERNIX_GREETER_THEME_DIR" --cache "$rt/fontconfig" > "$rt/fonts.conf"; then
   export FONTCONFIG_FILE=$rt/fonts.conf
 fi
 export SCENARIO=$scenario OUT=$out REPO=$repo HERE=$here RT=$rt

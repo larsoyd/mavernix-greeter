@@ -4,7 +4,7 @@ import unittest
 from collections import namedtuple
 from pathlib import Path
 
-from mavenix_greeter import users
+from mavernix_greeter import users
 
 Pw = namedtuple("Pw", "pw_name pw_uid pw_gecos pw_shell")
 

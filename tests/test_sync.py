@@ -7,13 +7,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mavenix_greeter import sync
+from mavernix_greeter import sync
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 32
 JPG = b"\xff\xd8\xff\xe0" + b"\0" * 32
 XCUR = b"Xcur" + b"\0" * 32
 TTF = b"\x00\x01\x00\x00" + b"\0" * 32
-THEME = {"schema": "mavenix-greeter.theme", "version": 1, "id": "sea-lion", "background": {"image": "background.jpg"}}
+THEME = {"schema": "mavernix-greeter.theme", "version": 1, "id": "sea-lion", "background": {"image": "background.jpg"}}
 
 
 def snapshot(root, files=None, links=None):
@@ -162,10 +162,10 @@ class Import(unittest.TestCase):
         self.assertIn("reader", self.run_import().problem)
 
     def test_json_is_rewritten(self):
-        snapshot(self.inbox, {"theme.json": b'{"schema":"mavenix-greeter.theme","version":1,"id":"a","background":{"image":"background.jpg"}}   '})
+        snapshot(self.inbox, {"theme.json": b'{"schema":"mavernix-greeter.theme","version":1,"id":"a","background":{"image":"background.jpg"}}   '})
         self.run_import()
         self.assertEqual((self.installed() / "theme.json").read_text(), json.dumps(
-            {"schema": "mavenix-greeter.theme", "version": 1, "id": "a", "background": {"image": "background.jpg"}},
+            {"schema": "mavernix-greeter.theme", "version": 1, "id": "a", "background": {"image": "background.jpg"}},
             indent=1, sort_keys=True) + "\n")
 
 

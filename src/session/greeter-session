@@ -2,10 +2,10 @@
 # greetd runs this as the greeter user: a private Wayfire with the greeter, or a text login if that fails
 set -uo pipefail
 
-lib=${MAVENIX_GREETER_LIBDIR:-/usr/lib/mavenix-greeter}
-share=${MAVENIX_GREETER_DATADIR:-/usr/share/mavenix-greeter}
-state=${MAVENIX_GREETER_STATEDIR:-/var/lib/mavenix-greeter}
-fallback=${MAVENIX_GREETER_FALLBACK:-$lib/text-greeter}
+lib=${MAVERNIX_GREETER_LIBDIR:-/usr/lib/mavernix-greeter}
+share=${MAVERNIX_GREETER_DATADIR:-/usr/share/mavernix-greeter}
+state=${MAVERNIX_GREETER_STATEDIR:-/var/lib/mavernix-greeter}
+fallback=${MAVERNIX_GREETER_FALLBACK:-$lib/text-greeter}
 
 log() { printf '[greeter-session] %s\n' "$*" >&2; }
 
@@ -19,14 +19,14 @@ fall_back() {
 
 if [[ -t 1 ]]; then
   if command -v systemd-cat >/dev/null; then
-    exec > >(exec systemd-cat -t mavenix-greeter) 2>&1
+    exec > >(exec systemd-cat -t mavernix-greeter) 2>&1
   else
     exec >/dev/null 2>&1
   fi
 fi
 
 [[ -n ${XDG_RUNTIME_DIR:-} && -d $XDG_RUNTIME_DIR && -O $XDG_RUNTIME_DIR ]] || fall_back no_runtime_dir
-run=$XDG_RUNTIME_DIR/mavenix-greeter
+run=$XDG_RUNTIME_DIR/mavernix-greeter
 { rm -rf "$run" && mkdir -m 700 "$run"; } || fall_back run_dir
 
 # an imported look that never reached a login three times running is set aside
@@ -42,9 +42,9 @@ if [[ -r $state/theme/current/theme.json ]]; then
   fi
 fi
 echo $((tries + 1)) > "$tries_file" 2>/dev/null
-export MAVENIX_GREETER_THEME_DIR=$theme
-export MAVENIX_GREETER_HELPER=$lib/helper
-export MAVENIX_GREETER_STATUS=$run/status
+export MAVERNIX_GREETER_THEME_DIR=$theme
+export MAVERNIX_GREETER_HELPER=$lib/helper
+export MAVERNIX_GREETER_STATUS=$run/status
 export XDG_CACHE_HOME=$run/cache XDG_STATE_HOME=$run/state XDG_DATA_HOME=$run/data XDG_CONFIG_HOME=$run/config
 export QS_DISABLE_CRASH_HANDLER=1 WLR_LOG=${WLR_LOG:-error}
 export XCURSOR_PATH=$theme/cursors:/usr/local/share/icons:/usr/share/icons
@@ -58,7 +58,7 @@ if [[ -z ${WLR_DRM_DEVICES:-} ]]; then
   drm=$(timeout 10 "$lib/helper" drm-device --theme-dir "$theme") && [[ -n $drm ]] && export WLR_DRM_DEVICES=$drm
 fi
 main=$(timeout 10 python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1])).get("display",{}).get("main_output",""))' \
-  "$theme/theme.json" 2>/dev/null) && export MAVENIX_GREETER_MAIN_OUTPUT=$main
+  "$theme/theme.json" 2>/dev/null) && export MAVERNIX_GREETER_MAIN_OUTPUT=$main
 
 timeout 10 "$lib/helper" compositor --theme-dir "$theme" --client "$lib/run-greeter" > "$run/wayfire.ini" \
   || fall_back compositor_config
@@ -66,8 +66,8 @@ timeout 10 "$lib/helper" compositor --theme-dir "$theme" --client "$lib/run-gree
 started=$(date +%s%N)
 # the compositor keeps this pid through exec, its clients need it to stop it
 # shellcheck disable=SC2016
-bash -c 'export MAVENIX_GREETER_WAYFIRE_PID=$$; exec setpriv --pdeathsig KILL -- "$@"' greeter \
-  "${MAVENIX_GREETER_COMPOSITOR:-wayfire}" -c "$run/wayfire.ini" &
+bash -c 'export MAVERNIX_GREETER_WAYFIRE_PID=$$; exec setpriv --pdeathsig KILL -- "$@"' greeter \
+  "${MAVERNIX_GREETER_COMPOSITOR:-wayfire}" -c "$run/wayfire.ini" &
 wf=$!
 echo "$wf" > "$run/compositor.pid"
 stopping=0

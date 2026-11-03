@@ -1,4 +1,4 @@
-# mavenix-greeter
+# mavernix-greeter
 
 A graphical login screen for [greetd](https://sr.ht/~kennylevinsen/greetd/). The interface is written in
 QML for [Quickshell](https://quickshell.org) and runs inside its own small [Wayfire](https://wayfire.org)
@@ -48,14 +48,14 @@ Installing does not change your login screen. Switching is a separate step.
 
 ## Switching to it
 
-`/usr/lib/mavenix-greeter/migrate` does this in steps. Every step prints `[migrate] key=value` lines and refuses
+`/usr/lib/mavernix-greeter/migrate` does this in steps. Every step prints `[migrate] key=value` lines and refuses
 rather than guessing.
 
 1. `migrate preflight` checks greetd, the `greeter` account, the text fallback, that at least one session is found
    and that text consoles are available. It changes nothing.
 2. `sudo migrate stage --pam-from <service>` writes `/etc/greetd/config.toml` and, with `--pam-from`, copies the
    PAM stack of your current login manager to `/etc/pam.d/greetd`, so security keys, faillock and wallet unlocking
-   keep working. Everything it replaces is saved under `/var/backups/mavenix-greeter/<time>/`. The active login
+   keep working. Everything it replaces is saved under `/var/backups/mavernix-greeter/<time>/`. The active login
    manager is not touched.
 3. `sudo migrate cutover` disables the current display manager and enables `greetd.service`. It takes effect at the
    next boot. Nothing running is stopped.
@@ -67,13 +67,13 @@ Before the first real boot, make sure you know your way to a text console (Ctrl+
 
 The login screen never reads anything in a home folder. A desktop hands its look over through an inbox:
 
-    sudo mavenix-greeter-sync enable <user>
+    sudo mavernix-greeter-sync enable <user>
 
-This makes `/var/lib/mavenix-greeter/inbox/<user>/`, owned by that user, and enables
-`mavenix-greeter-sync@<user>.path`. Mavernix writes a snapshot there at login and after display or keyboard
+This makes `/var/lib/mavernix-greeter/inbox/<user>/`, owned by that user, and enables
+`mavernix-greeter-sync@<user>.path`. Mavernix writes a snapshot there at login and after display or keyboard
 changes. The sync service reads the snapshot with that user's own permissions, checks every file by name, type,
-size and content, and installs it atomically to `/var/lib/mavenix-greeter/theme/current`.
-`sudo mavenix-greeter-sync reset` goes back to the neutral look, `disable <user>` stops taking updates.
+size and content, and installs it atomically to `/var/lib/mavernix-greeter/theme/current`.
+`sudo mavernix-greeter-sync reset` goes back to the neutral look, `disable <user>` stops taking updates.
 
 Whoever is enabled here decides what the login screen looks like for everyone, so only enable trusted accounts.
 
@@ -83,7 +83,7 @@ A folder with `theme.json` and the files it names:
 
 | key | meaning |
 |---|---|
-| `schema`, `version` | `"mavenix-greeter.theme"` and `1`. Other values are refused. |
+| `schema`, `version` | `"mavernix-greeter.theme"` and `1`. Other values are refused. |
 | `id`, `name` | the desktop theme's id and display name |
 | `background` | `image` (`background.png/.jpg/.webp`), `fit` (`cover`, `contain`, `stretch`), `veil`, or `color`, `color2`, `center_y`, `radius_x`, `radius_y` for the radial gradient |
 | `fonts` | `family`, `size`. Font files go in `fonts/` (ttf, otf, ttc, dfont). |
@@ -99,7 +99,7 @@ reading version 1.
 
 ## Configuration
 
-`/etc/mavenix-greeter/greeter.toml`:
+`/etc/mavernix-greeter/greeter.toml`:
 
     [users]
     hidden = []          # names left out of the list
@@ -111,18 +111,18 @@ reading version 1.
 ## Troubleshooting at boot
 
 - **Black screen or text login instead of the greeter.** Switch to another console with Ctrl+Alt+F2, log in, and
-  read `journalctl -b -t mavenix-greeter` and `journalctl -b -u greetd`. Lines start with `[greeter-session]`,
+  read `journalctl -b -t mavernix-greeter` and `journalctl -b -u greetd`. Lines start with `[greeter-session]`,
   `[run-greeter]` or `[greeter]` and give the reason.
-- **To get the old login screen back.** From a text console run `sudo /usr/lib/mavenix-greeter/migrate rollback`,
+- **To get the old login screen back.** From a text console run `sudo /usr/lib/mavernix-greeter/migrate rollback`,
   then reboot. Without the tool: `sudo systemctl disable greetd && sudo systemctl enable <old>.service`.
-- **The look is broken.** `sudo mavenix-greeter-sync reset` brings back the neutral look.
+- **The look is broken.** `sudo mavernix-greeter-sync reset` brings back the neutral look.
 - **Nothing works.** greetd gives up after five failed starts in 30 seconds. Text consoles keep working, since
   greetd only takes the first one.
 
 ## Uninstall
 
 Run `migrate rollback` first, then remove the package. The package warns if greetd still points at it.
-`/var/lib/mavenix-greeter` holds the imported look and the remembered last user and can be deleted afterwards.
+`/var/lib/mavernix-greeter` holds the imported look and the remembered last user and can be deleted afterwards.
 
 ## Development
 

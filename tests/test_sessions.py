@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mavenix_greeter import sessions
+from mavernix_greeter import sessions
 
 
 def entry(**keys):
@@ -177,8 +177,8 @@ class Find(unittest.TestCase):
     def test_x11_wrapped_or_left_out(self):
         self.write("xsessions", "px", entry(Name="Plasma X", Exec="startplasma-x11"))
         self.assertEqual(self.find(), [])
-        (s,) = self.find(x11_wrapper=["/usr/lib/mavenix-greeter/x11-session"])
-        self.assertEqual(s["argv"], ["/usr/lib/mavenix-greeter/x11-session", "startplasma-x11"])
+        (s,) = self.find(x11_wrapper=["/usr/lib/mavernix-greeter/x11-session"])
+        self.assertEqual(s["argv"], ["/usr/lib/mavernix-greeter/x11-session", "startplasma-x11"])
         self.assertIn("XDG_SESSION_TYPE=x11", s["env"])
 
     def test_sorted_by_name_with_preferred_first(self):

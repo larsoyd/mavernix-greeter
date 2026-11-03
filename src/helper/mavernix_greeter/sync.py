@@ -9,7 +9,7 @@ import time
 from collections import namedtuple
 from pathlib import Path
 
-SCHEMA = "mavenix-greeter.theme"
+SCHEMA = "mavernix-greeter.theme"
 VERSION = 1
 TOTAL = 160 * 1024 * 1024
 MAX_ENTRIES = 8000

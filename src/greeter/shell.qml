@@ -4,7 +4,7 @@ import Quickshell
 ShellRoot {
     id: shell
 
-    readonly property string mainName: Quickshell.env("MAVENIX_GREETER_MAIN_OUTPUT") || ""
+    readonly property string mainName: Quickshell.env("MAVERNIX_GREETER_MAIN_OUTPUT") || ""
 
     function isMain(screen) {
         const all = Quickshell.screens

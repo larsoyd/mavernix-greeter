@@ -314,7 +314,7 @@ SCENARIOS = {
     "fail_start": ("fail_start", fail_start, {}),
     "pick_second_user": ("password", pick_second_user, {"STUB_USERS": "ada,bob"}),
     "unavailable": (None, unavailable, {}),
-    "greetd_dies": ("password", greetd_dies, {"MAVENIX_GREETER_WATCHDOG_MS": "3000"}),
+    "greetd_dies": ("password", greetd_dies, {"MAVERNIX_GREETER_WATCHDOG_MS": "3000"}),
     "two_outputs": ("password", two_outputs, {}),
 }
 

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mavenix_greeter import sync_cli
+from mavernix_greeter import sync_cli
 
 
 class Inbox(unittest.TestCase):

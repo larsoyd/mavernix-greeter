@@ -12,7 +12,7 @@ PanelWindow {
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "mavenix-greeter"
+    WlrLayershell.namespace: "mavernix-greeter"
     WlrLayershell.keyboardFocus: main ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     color: Theme.color(theme.background.color2) ?? "black"
 

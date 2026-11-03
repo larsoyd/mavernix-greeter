@@ -2,24 +2,24 @@
 # started by the greeter compositor: runs the QML greeter, restarts it after a crash, then stops the compositor
 set -uo pipefail
 
-share=${MAVENIX_GREETER_DATADIR:-/usr/share/mavenix-greeter}
-status=${MAVENIX_GREETER_STATUS:?}
-wf=${MAVENIX_GREETER_WAYFIRE_PID:?}
-tries=${MAVENIX_GREETER_TRIES:-3}
+share=${MAVERNIX_GREETER_DATADIR:-/usr/share/mavernix-greeter}
+status=${MAVERNIX_GREETER_STATUS:?}
+wf=${MAVERNIX_GREETER_WAYFIRE_PID:?}
+tries=${MAVERNIX_GREETER_TRIES:-3}
 
 log() { printf '[run-greeter] %s\n' "$*" >&2; }
 
 stop_compositor() {
   local comm
   comm=$(cat "/proc/$wf/comm" 2>/dev/null)
-  if [[ $comm == "${MAVENIX_GREETER_COMPOSITOR_COMM:-wayfire}" ]]; then
+  if [[ $comm == "${MAVERNIX_GREETER_COMPOSITOR_COMM:-wayfire}" ]]; then
     kill -TERM "$wf"
   else
     log "stop refused pid=$wf comm=${comm:-gone}"
   fi
 }
 
-alive() { [[ $(cat "/proc/$wf/comm" 2>/dev/null) == "${MAVENIX_GREETER_COMPOSITOR_COMM:-wayfire}" ]]; }
+alive() { [[ $(cat "/proc/$wf/comm" 2>/dev/null) == "${MAVERNIX_GREETER_COMPOSITOR_COMM:-wayfire}" ]]; }
 
 for (( i = 1; i <= tries; i++ )); do
   alive || { log "result=compositor_gone try=$i"; exit 0; }

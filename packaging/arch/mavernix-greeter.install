@@ -1,0 +1,13 @@
+post_install() {
+  echo "mavernix-greeter is installed but not active."
+  echo "  check:   /usr/lib/mavernix-greeter/migrate preflight"
+  echo "  switch:  /usr/lib/mavernix-greeter/migrate stage, then cutover (takes effect at the next boot)"
+  echo "  undo:    /usr/lib/mavernix-greeter/migrate rollback"
+}
+
+pre_remove() {
+  if [ "$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null)" = /usr/lib/systemd/system/greetd.service ] \
+     && grep -q mavernix-greeter /etc/greetd/config.toml 2>/dev/null; then
+    echo "warning: greetd still starts mavernix-greeter, run /usr/lib/mavernix-greeter/migrate rollback first or the login screen falls back to text"
+  fi
+}

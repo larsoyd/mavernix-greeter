@@ -11,12 +11,12 @@ from pathlib import Path
 
 from . import compositor, sessions, users
 
-CONFIG = "/etc/mavenix-greeter/greeter.toml"
-STATE = "/var/lib/mavenix-greeter/greeter/last.json"
+CONFIG = "/etc/mavernix-greeter/greeter.toml"
+STATE = "/var/lib/mavernix-greeter/greeter/last.json"
 ICONS = "/var/lib/AccountsService/icons"
 DATA_DIRS = ["/usr/local/share", "/usr/share"]
 PATH = ["/usr/local/bin", "/usr/bin"]
-X11_WRAPPER = "/usr/lib/mavenix-greeter/x11-session"
+X11_WRAPPER = "/usr/lib/mavernix-greeter/x11-session"
 KEYMAP = "/etc/X11/xorg.conf.d/00-keyboard.conf"
 NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.@-]{0,63}")
 POWER = {"poweroff": "PowerOff", "reboot": "Reboot", "suspend": "Suspend"}
@@ -103,7 +103,7 @@ def x11_wrapper():
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="mavenix-greeter-helper")
+    ap = argparse.ArgumentParser(prog="mavernix-greeter-helper")
     ap.add_argument("--config", default=CONFIG)
     ap.add_argument("--state", default=STATE)
     ap.add_argument("--data-dir", action="append")

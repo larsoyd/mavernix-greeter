@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import sync
 
-STATE = Path("/var/lib/mavenix-greeter")
+STATE = Path("/var/lib/mavernix-greeter")
 USER = re.compile(r"[a-z_][a-z0-9_-]{0,31}")
 READER = Path(__file__).with_name("reader.py")
 
@@ -41,7 +41,7 @@ def log(text):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="mavenix-greeter-sync")
+    ap = argparse.ArgumentParser(prog="mavernix-greeter-sync")
     ap.add_argument("action", choices=["import", "enable", "disable", "reset"])
     ap.add_argument("user", nargs="?")
     args = ap.parse_args(argv)
@@ -62,11 +62,11 @@ def main(argv=None):
         own = inbox / args.user
         own.mkdir(mode=0o700, exist_ok=True)
         os.chown(own, pw.pw_uid, pw.pw_gid, follow_symlinks=False)
-        subprocess.run(["systemctl", "enable", "--now", f"mavenix-greeter-sync@{args.user}.path"], check=True, timeout=30)
+        subprocess.run(["systemctl", "enable", "--now", f"mavernix-greeter-sync@{args.user}.path"], check=True, timeout=30)
         log(f"result=enabled user={args.user}")
         return 0
     if args.action == "disable":
-        subprocess.run(["systemctl", "disable", "--now", f"mavenix-greeter-sync@{args.user}.path"], timeout=30)
+        subprocess.run(["systemctl", "disable", "--now", f"mavernix-greeter-sync@{args.user}.path"], timeout=30)
         log(f"result=disabled user={args.user}")
         return 0
     problem = check_inbox(inbox, args.user, pw.pw_uid)

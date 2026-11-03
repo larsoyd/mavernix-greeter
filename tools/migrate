@@ -2,9 +2,9 @@
 # migrate preflight|stage|cutover|rollback|status: move the login screen to greetd and back
 set -uo pipefail
 
-lib=${MAVENIX_GREETER_LIBDIR:-/usr/lib/mavenix-greeter}
-share=${MAVENIX_GREETER_DATADIR:-/usr/share/mavenix-greeter}
-backups=${MAVENIX_GREETER_BACKUPS:-/var/backups/mavenix-greeter}
+lib=${MAVERNIX_GREETER_LIBDIR:-/usr/lib/mavernix-greeter}
+share=${MAVERNIX_GREETER_DATADIR:-/usr/share/mavernix-greeter}
+backups=${MAVERNIX_GREETER_BACKUPS:-/var/backups/mavernix-greeter}
 units=/etc/systemd/system
 dm_link=$units/display-manager.service
 
@@ -82,7 +82,7 @@ stage() {
   fi
   python3 -I -c 'import sys, tomllib; c = tomllib.load(open(sys.argv[1], "rb")); assert c["default_session"]["user"] == "greeter"' \
     /etc/greetd/config.toml || { restore "$dir"; refuse "written config does not parse, restored"; }
-  systemd-tmpfiles --create /usr/lib/tmpfiles.d/mavenix-greeter.conf || say "warning: tmpfiles failed"
+  systemd-tmpfiles --create /usr/lib/tmpfiles.d/mavernix-greeter.conf || say "warning: tmpfiles failed"
   say "result=staged backup=$dir previous=${dm:-none} pam_from=${pam_from:-package}"
 }
 
@@ -97,7 +97,7 @@ cutover() {
   need_root
   local dir old
   dir=$(latest_backup) || refuse "nothing staged"
-  grep -q mavenix-greeter /etc/greetd/config.toml 2>/dev/null || refuse "greetd is not staged"
+  grep -q mavernix-greeter /etc/greetd/config.toml 2>/dev/null || refuse "greetd is not staged"
   old=$(cat "$dir/display-manager")
   [[ $old == greetd.service ]] && { say "result=already"; return 0; }
   if [[ -n $old ]]; then

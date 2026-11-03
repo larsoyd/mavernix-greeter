@@ -3,11 +3,11 @@ Description=Install the login screen look exported by %i
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/mavenix-greeter-sync import %i
+ExecStart=/usr/bin/mavernix-greeter-sync import %i
 TimeoutStartSec=120
 UMask=0022
 ProtectSystem=strict
-ReadWritePaths=-/var/lib/mavenix-greeter/theme
+ReadWritePaths=-/var/lib/mavernix-greeter/theme
 ProtectHome=yes
 PrivateTmp=yes
 PrivateNetwork=yes

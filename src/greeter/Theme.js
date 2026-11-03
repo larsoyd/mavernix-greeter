@@ -1,6 +1,6 @@
 // greeter theme snapshot: neutral defaults, a checked merge and colour conversion
 
-var SCHEMA = "mavenix-greeter.theme";
+var SCHEMA = "mavernix-greeter.theme";
 var VERSION = 1;
 var ASSET = /^[A-Za-z0-9_][A-Za-z0-9_.-]*(\/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$/;
 var RANGES = {

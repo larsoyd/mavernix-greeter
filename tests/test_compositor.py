@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mavenix_greeter import compositor
+from mavernix_greeter import compositor
 
 
 def ini(text):
@@ -14,7 +14,7 @@ def ini(text):
 
 class Ini(unittest.TestCase):
     def build(self, theme=None, keyboard=None):
-        return ini(compositor.wayfire_ini(theme or {}, keyboard or {}, "/usr/lib/mavenix-greeter/run-greeter"))
+        return ini(compositor.wayfire_ini(theme or {}, keyboard or {}, "/usr/lib/mavernix-greeter/run-greeter"))
 
     def test_minimal_plugins_and_no_escape_hatches(self):
         c = self.build()
@@ -23,7 +23,7 @@ class Ini(unittest.TestCase):
         self.assertEqual(c["core"]["xwayland"], "false")
         self.assertEqual(c["autostart"]["autostart_wf_shell"], "false")
         self.assertEqual(c["workarounds"]["discard_command_output"], "false")
-        self.assertEqual(c["autostart"]["greeter"], "/usr/lib/mavenix-greeter/run-greeter")
+        self.assertEqual(c["autostart"]["greeter"], "/usr/lib/mavernix-greeter/run-greeter")
 
     def test_outputs_from_theme(self):
         theme = {"display": {"outputs": [
@@ -114,8 +114,18 @@ class Drm(unittest.TestCase):
         self.assertEqual(compositor.drm_device("nvidia", root), "/dev/dri/card1")
         (root / "card1-DP-1" / "status").write_text("disconnected\n")
         self.assertEqual(compositor.drm_device("nvidia", root), "")
-        self.assertEqual(compositor.drm_device("i915", root), "")
+
+    def test_without_a_driver_the_only_card_with_a_screen(self):
+        root = Path(tempfile.mkdtemp())
+        for card, status in (("card0", "disconnected"), ("card1", "connected")):
+            (root / card).mkdir()
+            (root / f"{card}-DP-1").mkdir()
+            (root / f"{card}-DP-1" / "status").write_text(status + "\n")
+        self.assertEqual(compositor.drm_device("", root), "/dev/dri/card1")
+        (root / "card0-DP-1" / "status").write_text("connected\n")
         self.assertEqual(compositor.drm_device("", root), "")
+        self.assertEqual(compositor.drm_device("i915", root), "")
+        self.assertEqual(compositor.drm_device("../x", root), "")
         self.assertEqual(compositor.drm_device("../x", root), "")
 
 

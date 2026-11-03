@@ -10,9 +10,9 @@ import "Theme.js" as Theme
 Singleton {
     id: root
 
-    readonly property string helper: Quickshell.env("MAVENIX_GREETER_HELPER") || "/usr/lib/mavenix-greeter/helper"
-    readonly property string themeDir: Quickshell.env("MAVENIX_GREETER_THEME_DIR") || "/usr/share/mavenix-greeter/themes/neutral"
-    readonly property int watchdogMs: Number(Quickshell.env("MAVENIX_GREETER_WATCHDOG_MS")) || 30000
+    readonly property string helper: Quickshell.env("MAVERNIX_GREETER_HELPER") || "/usr/lib/mavernix-greeter/helper"
+    readonly property string themeDir: Quickshell.env("MAVERNIX_GREETER_THEME_DIR") || "/usr/share/mavernix-greeter/themes/neutral"
+    readonly property int watchdogMs: Number(Quickshell.env("MAVERNIX_GREETER_WATCHDOG_MS")) || 30000
 
     property var auth: Auth.initial(Greetd.available)
     property var theme: Theme.defaults()
@@ -165,7 +165,7 @@ Singleton {
 
     FileView {
         id: statusFile
-        path: Quickshell.env("MAVENIX_GREETER_STATUS") ?? ""
+        path: Quickshell.env("MAVERNIX_GREETER_STATUS") ?? ""
         blockWrites: true
         printErrors: false
     }

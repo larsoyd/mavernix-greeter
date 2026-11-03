@@ -75,9 +75,13 @@ def pick_keyboard(theme, system):
 
 
 def drm_device(driver, root="/sys/class/drm"):
-    if not driver or not NAME.fullmatch(driver):
+    cards = sorted(Path(root).glob("card[0-9]*"))
+    if not driver:
+        lit = [c for c in cards if connected(c)]
+        return f"/dev/dri/{lit[0].name}" if len(lit) == 1 else ""
+    if not NAME.fullmatch(driver):
         return ""
-    for card in sorted(Path(root).glob("card[0-9]*")):
+    for card in cards:
         if Path(os.path.realpath(card / "device" / "driver")).name == driver and connected(card):
             return f"/dev/dri/{card.name}"
     return ""

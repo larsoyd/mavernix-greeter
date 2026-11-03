@@ -1,4 +1,4 @@
-# copy to /etc/mavenix-greeter/greeter.toml to change the defaults
+# copy to /etc/mavernix-greeter/greeter.toml to change the defaults
 
 [users]
 # names left out of the user list

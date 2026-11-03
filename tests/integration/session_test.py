@@ -33,7 +33,7 @@ def tree(tmp, greeter=True):
         (lib / name).symlink_to(REPO / "src/session" / name)
     (lib / "helper").write_text(f"""#!/usr/bin/env bash
 case $1 in users|sessions|power-caps|remember|power) exec python3 {HERE}/stub_helper.py "$@";; esac
-PYTHONPATH={REPO}/src/helper exec python3 -c 'import sys; from mavenix_greeter import cli; sys.exit(cli.main(sys.argv[1:]))' "$@"
+PYTHONPATH={REPO}/src/helper exec python3 -c 'import sys; from mavernix_greeter import cli; sys.exit(cli.main(sys.argv[1:]))' "$@"
 """)
     (lib / "text-greeter").write_text("#!/usr/bin/env bash\nt=n\n[[ -t 1 ]] && t=y\n"
                                       f"echo fallback tty_out=$t >> {tmp}/fallback.txt\n"
@@ -107,9 +107,9 @@ class Case:
             time.sleep(0.05)
         env = {k: v for k, v in os.environ.items() if k not in ("DISPLAY", "WAYLAND_DISPLAY")}
         env.update(XDG_RUNTIME_DIR=str(self.rt), GREETD_SOCK=str(self.greetd_sock), _WAYFIRE_SOCKET=str(self.sock),
-                   MAVENIX_GREETER_LIBDIR=str(lib), MAVENIX_GREETER_DATADIR=str(share),
-                   MAVENIX_GREETER_STATEDIR=str(state), MAVENIX_GREETER_FALLBACK=str(lib / "text-greeter"),
-                   MAVENIX_GREETER_COMPOSITOR=compositor or str(tmp / "wayfire-test"),
+                   MAVERNIX_GREETER_LIBDIR=str(lib), MAVERNIX_GREETER_DATADIR=str(share),
+                   MAVERNIX_GREETER_STATEDIR=str(state), MAVERNIX_GREETER_FALLBACK=str(lib / "text-greeter"),
+                   MAVERNIX_GREETER_COMPOSITOR=compositor or str(tmp / "wayfire-test"),
                    STUB_RECORD=str(self.out / "helper.log"), WLR_DRM_DEVICES="none",
                    PATH=f"{tmp / 'bin'}:{os.environ['PATH']}", **(extra or {}))
         if tty:
@@ -140,7 +140,7 @@ class Case:
         raise Fail(f"waited for {what} deadline_s={deadline}")
 
     def compositor_pid(self):
-        p = self.rt / "mavenix-greeter" / "compositor.pid"
+        p = self.rt / "mavernix-greeter" / "compositor.pid"
         self.wait_for("compositor pid", p.exists, 10)
         return int(p.read_text())
 

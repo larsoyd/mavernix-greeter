@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mavenix_greeter import cli
+from mavernix_greeter import cli
 
 
 class Config(unittest.TestCase):

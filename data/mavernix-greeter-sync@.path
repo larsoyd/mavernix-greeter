@@ -2,7 +2,7 @@
 Description=Watch the login screen look exported by %i
 
 [Path]
-PathChanged=/var/lib/mavenix-greeter/inbox/%i/ready
+PathChanged=/var/lib/mavernix-greeter/inbox/%i/ready
 TriggerLimitIntervalSec=60
 TriggerLimitBurst=4
 

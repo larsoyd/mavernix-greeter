@@ -4,7 +4,7 @@ set -uo pipefail
 out=$1
 mkdir -p "$out"
 exec > "$out/migrate.log" 2>&1
-m=/usr/lib/mavenix-greeter/migrate
+m=/usr/lib/mavernix-greeter/migrate
 fail() { echo "[e2e] result=fail reason=$*"; exit 1; }
 dm() { basename "$(readlink -f /etc/systemd/system/display-manager.service)"; }
 
@@ -25,7 +25,7 @@ $m stage --pam-from '../shadow' && fail "bad pam name accepted"
 $m stage --pam-from oldlogin || fail "stage failed"
 [[ $(dm) == oldlogin.service ]] || fail "stage switched the display manager"
 grep -q marker-oldlogin /etc/pam.d/greetd || fail "pam stack not copied"
-grep -q /usr/lib/mavenix-greeter/greeter-session /etc/greetd/config.toml || fail "config not written"
+grep -q /usr/lib/mavernix-greeter/greeter-session /etc/greetd/config.toml || fail "config not written"
 $m cutover || fail "cutover failed"
 [[ $(dm) == greetd.service ]] || fail "cutover did not switch, dm=$(dm)"
 systemctl is-enabled oldlogin.service && fail "old display manager still enabled"

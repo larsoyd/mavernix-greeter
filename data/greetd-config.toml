@@ -5,5 +5,5 @@ vt = 1
 source_profile = true
 
 [default_session]
-command = "/usr/lib/mavenix-greeter/greeter-session"
+command = "/usr/lib/mavernix-greeter/greeter-session"
 user = "greeter"

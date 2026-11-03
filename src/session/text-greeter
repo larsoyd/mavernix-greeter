@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # last resort on the console: a text login that still starts the default session
 set -uo pipefail
-lib=${MAVENIX_GREETER_LIBDIR:-/usr/lib/mavenix-greeter}
+lib=${MAVERNIX_GREETER_LIBDIR:-/usr/lib/mavernix-greeter}
 cmd=$(timeout 10 "$lib/helper" default-session 2>/dev/null) || cmd=/bin/sh
 if command -v tuigreet >/dev/null; then
   exec tuigreet --time --remember --cmd "$cmd"

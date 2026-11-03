@@ -5,7 +5,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from mavenix_greeter import cli
+from mavernix_greeter import cli
 
 
 def call(*argv):

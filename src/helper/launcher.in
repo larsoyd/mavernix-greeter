@@ -2,6 +2,6 @@
 import sys
 
 sys.path.insert(0, "@PYDIR@")
-from mavenix_greeter.@MODULE@ import main  # noqa: E402
+from mavernix_greeter.@MODULE@ import main  # noqa: E402
 
 sys.exit(main())
