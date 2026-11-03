@@ -79,6 +79,8 @@ class Greetd:
             if self.pending_ack:
                 self.pending_ack = False
                 self.note(event="ack")
+                if self.scenario == "u2f_then_password":
+                    time.sleep(1.5)
             else:
                 _, text, want = self.steps.pop(0)
                 self.ok = self.ok and answer == want
