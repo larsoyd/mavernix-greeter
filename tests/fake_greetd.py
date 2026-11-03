@@ -16,6 +16,7 @@ SCENARIOS = {
                 ("secret", "New password: ", "next"), ("secret", "Retype new password: ", "next")],
     "fail_start": [("secret", "Password: ", "right")],
     "slow": [("secret", "Password: ", "right")],
+    "slow_start": [("secret", "Password: ", "right")],
 }
 
 
@@ -98,6 +99,8 @@ class Greetd:
                 self.scenario, self.steps = "password", None
                 self.note(event="start", result="failed")
                 return {"type": "error", "error_type": "error", "description": "exec failed"}
+            if self.scenario == "slow_start":
+                time.sleep(1.5)
             self.note(event="start", user=self.user, cmd=json.dumps(req.get("cmd")), env=json.dumps(req.get("env")))
             return {"type": "success"}
         return {"type": "error", "error_type": "error", "description": "unknown request"}

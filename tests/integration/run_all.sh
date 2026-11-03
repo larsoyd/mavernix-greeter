@@ -3,7 +3,7 @@
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 out=$1; shift
-all=(password_ok wrong_then_ok u2f u2f_then_password_typed_early multi expired fail_start pick_second_user cancel_during_touch unavailable greetd_dies two_outputs)
+all=(password_ok wrong_then_ok u2f fades_to_black u2f_then_password_typed_early multi expired fail_start pick_second_user cancel_during_touch unavailable greetd_dies two_outputs)
 (( $# )) && all=("$@")
 fails=0
 for s in "${all[@]}"; do

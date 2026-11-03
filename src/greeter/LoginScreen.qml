@@ -27,31 +27,36 @@ PanelWindow {
         anchors.fill: parent
         visible: win.main && Controller.themeReady && Controller.usersLoaded
 
-        NumberAnimation on opacity {
-            id: fade
-            running: false
-            to: 0
-            duration: win.theme.animation.fade_ms
-            easing.type: Easing.InOutQuad
-            onFinished: Controller.dispatch({ type: "faded" })
-        }
-
-        Connections {
-            target: Controller
-            function onFadeOut() {
-                if (win.main)
-                    fade.start()
-            }
-            function onFadeIn() {
-                fade.stop()
-                content.opacity = 1
-            }
-        }
-
         Stage {
             anchors.fill: parent
             focus: true
         }
 
+    }
+
+    // every screen ends on black, the same colour the console shows before the desktop draws
+    Rectangle {
+        id: curtain
+        anchors.fill: parent
+        color: "black"
+        opacity: 0
+
+        NumberAnimation on opacity {
+            id: fade
+            running: false
+            to: 1
+            duration: win.theme.animation.fade_ms
+            easing.type: Easing.InOutQuad
+            onFinished: if (win.main) Controller.dispatch({ type: "faded" })
+        }
+    }
+
+    Connections {
+        target: Controller
+        function onFadeOut() { fade.start() }
+        function onFadeIn() {
+            fade.stop()
+            curtain.opacity = 0
+        }
     }
 }

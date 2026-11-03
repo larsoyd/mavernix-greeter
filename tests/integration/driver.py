@@ -127,7 +127,7 @@ class Run:
 def brightness(path):
     from PIL import Image
     img = Image.open(path).convert("L")
-    px = list(img.getdata())
+    px = list(img.get_flattened_data()) if hasattr(img, "get_flattened_data") else list(img.getdata())
     return sum(1 for p in px if p > 245), sum(px) / len(px)
 
 
@@ -222,6 +222,22 @@ def u2f(run):
     launched(run)
 
 
+def fades_to_black(run):
+    run.wait(r"phase=prompt")
+    settled_layout(run)
+    run.wf.type("right")
+    run.wf.key("KEY_ENTER")
+    run.wait(r"phase=leaving")
+    time.sleep(0.6)
+    if run.qs.poll() is None:
+        run.shot("after-fade")
+        white, mean = brightness(OUT / "after-fade.png")
+        print(f"[driver] after_fade mean={mean:.1f}")
+        if mean > 3:
+            raise Fail(f"screen not black after the exit fade mean={mean:.1f}")
+    launched(run)
+
+
 def u2f_then_password_typed_early(run):
     run.wait(r"phase=info")
     run.wf.type("right")
@@ -264,6 +280,9 @@ def fail_start(run):
     run.wait(r"phase=error from=launching event=error problem=launch")
     time.sleep(0.8)
     run.shot("launch-error")
+    white, mean = brightness(OUT / "launch-error.png")
+    if mean < 20 or white < 1000:
+        raise Fail(f"the screen did not come back after a failed launch mean={mean:.1f} white={white}")
     run.wf.key("KEY_ENTER")
     run.wait(r"phase=starting from=error event=retry")
     run.wait(r"phase=prompt from=starting")
@@ -354,6 +373,7 @@ SCENARIOS = {
     "password_ok": ("password", password_ok, {}),
     "wrong_then_ok": ("password", wrong_then_ok, {}),
     "u2f": ("u2f", u2f, {}),
+    "fades_to_black": ("slow_start", fades_to_black, {}),
     "u2f_then_password_typed_early": ("u2f_then_password", u2f_then_password_typed_early, {}),
     "multi": ("multi", multi, {}),
     "expired": ("expired", expired, {}),
