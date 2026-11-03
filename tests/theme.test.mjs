@@ -68,9 +68,10 @@ test("asset paths must stay inside the theme folder", () => {
 
 test("numbers are clamped to sane ranges", () => {
   const r = T.load(JSON.stringify({ schema: T.SCHEMA, version: T.VERSION, avatar: { size: 100000 },
-    animation: { fade_ms: -5, shake: { swings: [1e9, 3], swing_ms: 0 } } }));
+    animation: { fade_ms: -5, shake: { swings: [1e9, 3], swing_ms: 0, amplitude: 1e6 } } }));
   assert.ok(r.theme.avatar.size <= 512);
   assert.ok(r.theme.animation.fade_ms >= 0);
   assert.deepEqual(r.theme.animation.shake.swings, [200, 3]);
   assert.ok(r.theme.animation.shake.swing_ms >= 10);
+  assert.ok(r.theme.animation.shake.amplitude <= 200);
 });

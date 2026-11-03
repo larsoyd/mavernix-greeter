@@ -1,17 +1,13 @@
 import QtQuick
 import "Theme.js" as Theme
 
-Text {
+ShadowText {
     id: b
-    required property var theme
     signal activated()
 
-    color: Theme.color(theme.colors.button) ?? "white"
-    font.family: theme.fonts.family
-    font.pixelSize: theme.fonts.label_size
-    font.underline: mouse.containsMouse || activeFocus
-    style: Text.Raised
-    styleColor: Theme.color(theme.colors.text_shadow) ?? "transparent"
+    color: mouse.pressed ? (Theme.color(theme.colors.label_pressed) ?? "white") : (Theme.color(theme.colors.label) ?? "white")
+    shadowColor: Theme.color(theme.colors.label_shadow) ?? "transparent"
+    shadowY: 1
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
     Accessible.name: text
@@ -19,11 +15,20 @@ Text {
     Keys.onReturnPressed: activated()
     Keys.onSpacePressed: activated()
 
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -3
+        radius: 3
+        color: "transparent"
+        border.color: Theme.color(b.theme.colors.focus) ?? "white"
+        border.width: 2
+        visible: b.activeFocus
+    }
+
     MouseArea {
         id: mouse
         anchors.fill: parent
         anchors.margins: -4
-        hoverEnabled: true
         onClicked: b.activated()
     }
 }

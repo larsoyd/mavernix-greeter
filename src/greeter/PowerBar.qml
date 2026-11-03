@@ -4,51 +4,51 @@ import "Theme.js" as Theme
 Row {
     id: bar
     readonly property var theme: Controller.theme
-    spacing: 44
+    spacing: theme.layout.bar_gap
 
     Repeater {
         model: [
-            { action: "suspend", label: qsTr("Sleep"), glyph: "☾" },
-            { action: "reboot", label: qsTr("Restart"), glyph: "↻" },
-            { action: "poweroff", label: qsTr("Shut Down"), glyph: "⏻" }
+            { action: "suspend", label: qsTr("Sleep") },
+            { action: "reboot", label: qsTr("Restart") },
+            { action: "poweroff", label: qsTr("Shut Down") }
         ]
-        Column {
+        Item {
             id: btn
             required property var modelData
             visible: Controller.power[modelData.action] === true
-            spacing: 6
+            width: Math.max(label.implicitWidth, 34) + 4
+            height: 36 + 4 + label.implicitHeight
             activeFocusOnTab: true
             Accessible.role: Accessible.Button
             Accessible.name: modelData.label
+            Accessible.onPressAction: Controller.powerAction(modelData.action)
             Keys.onReturnPressed: Controller.powerAction(modelData.action)
             Keys.onSpacePressed: Controller.powerAction(modelData.action)
 
-            Rectangle {
+            PowerIcon {
+                id: icon
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: 34
-                height: 34
-                radius: 17
-                color: Theme.color(bar.theme.colors.button_back) ?? "#40000000"
-                border.width: btn.activeFocus ? 2 : 1
-                border.color: btn.activeFocus ? (Theme.color(bar.theme.colors.focus) ?? "white") : "#59ffffff"
-                Text {
-                    anchors.centerIn: parent
-                    text: btn.modelData.glyph
-                    color: Theme.color(bar.theme.colors.button) ?? "white"
-                    font.pixelSize: 17
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: Controller.powerAction(btn.modelData.action)
-                }
+                kind: btn.modelData.action
+                pressed: area.pressed
+                focused: btn.activeFocus
             }
             ShadowText {
+                id: label
                 anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: icon.bottom
+                anchors.topMargin: 4
                 theme: bar.theme
                 text: btn.modelData.label
-                font.pixelSize: bar.theme.fonts.label_size
-                color: Controller.powerProblem === btn.modelData.action
-                       ? (Theme.color(bar.theme.colors.error) ?? "pink") : (Theme.color(bar.theme.colors.button) ?? "white")
+                shadowY: 1
+                shadowColor: Theme.color(bar.theme.colors.label_shadow) ?? "transparent"
+                color: Controller.powerProblem === btn.modelData.action ? (Theme.color(bar.theme.colors.error) ?? "pink")
+                     : area.pressed ? (Theme.color(bar.theme.colors.label_pressed) ?? "white")
+                     : (Theme.color(bar.theme.colors.label) ?? "white")
+            }
+            MouseArea {
+                id: area
+                anchors.fill: parent
+                onClicked: Controller.powerAction(btn.modelData.action)
             }
         }
     }

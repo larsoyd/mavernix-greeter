@@ -149,9 +149,31 @@ def launched(run, session_cmd="'/usr/bin/start desk'"):
         raise Fail(f"greeter exit={rc}")
 
 
+def white_box(path):
+    from PIL import Image
+    img = Image.open(path).convert("RGB")
+    w, h = img.size
+    px = img.load()
+    xs, ys = [], []
+    for y in range(h // 3, h - h // 4):
+        row = [x for x in range(w // 4, 3 * w // 4) if min(px[x, y]) > 250]
+        if len(row) >= 120:
+            xs += row
+            ys.append(y)
+    if not xs:
+        raise Fail("no white field found")
+    return min(xs), min(ys), max(xs), max(ys), w, h
+
+
 def password_ok(run):
     run.wait(r"phase=prompt")
+    time.sleep(0.7)
     run.shot("prompt")
+    x0, y0, x1, y1, w, h = white_box(OUT / "prompt.png")
+    cy = h / 2
+    print(f"[driver] field_px x={x0}..{x1} y={y0}..{y1} screen={w}x{h} bottom_below_centre={y1 + 1 - cy:.0f}")
+    if abs((y1 + 1) - (cy + 132)) > 2 or abs((x1 - x0 + 1) - 164) > 4 or abs((x0 + x1 + 1) / 2 - w / 2) > 2:
+        raise Fail(f"field geometry off: x={x0}..{x1} y={y0}..{y1}")
     run.wf.type("right")
     run.wf.key("KEY_ENTER")
     run.wait(r"phase=leaving")

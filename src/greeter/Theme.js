@@ -4,24 +4,35 @@ var SCHEMA = "mavenix-greeter.theme";
 var VERSION = 1;
 var ASSET = /^[A-Za-z0-9_][A-Za-z0-9_.-]*(\/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$/;
 var RANGES = {
-    "avatar.size": [16, 512], "field.width": [60, 800], "field.height": [12, 80], "field.radius": [0, 40],
-    "fonts.name_size": [6, 72], "fonts.field_size": [6, 72], "fonts.label_size": [6, 72],
-    "layout.center_y": [0.1, 0.9], "layout.spacing": [0, 200], "layout.grid_gap": [0, 400],
-    "animation.fade_ms": [0, 2000], "animation.shake.swing_ms": [10, 500]
+    "background.center_y": [0, 1], "background.radius_x": [0.1, 3], "background.radius_y": [0.1, 3],
+    "fonts.size": [6, 72], "name.blur": [0, 16], "name.shadow_y": [-8, 8],
+    "avatar.size": [16, 512], "tile.width": [60, 600], "tile.height": [60, 600],
+    "field.width": [60, 800], "field.height": [12, 80], "field.radius": [0, 40],
+    "layout.tile_top": [-400, 400], "layout.field_bottom": [-400, 600], "layout.bar_bottom": [0, 400],
+    "layout.bar_gap": [0, 200], "animation.select_ms": [0, 3000], "animation.fade_ms": [0, 3000],
+    "animation.shake.amplitude": [0, 200], "animation.shake.duration_ms": [0, 3000],
+    "animation.shake.cycles": [0, 20], "animation.shake.damping": [0, 20], "animation.shake.swing_ms": [10, 500]
 };
 
 function defaults() {
     return {
         schema: SCHEMA, version: VERSION, id: "neutral", name: "Neutral",
-        background: { color: "#454c58ff", color2: "#1f2329ff", image: "", fit: "cover", veil: "#00000000" },
-        fonts: { family: "sans-serif", name_size: 15, name_bold: true, field_size: 13, label_size: 12 },
-        colors: { text: "#ffffffff", text_shadow: "#00000099", field: "#ffffffff", field_border: "#00000040",
-                  field_text: "#000000ff", placeholder: "#8c8c8cff", focus: "#7aa7d8ff", error: "#ffc4c4ff",
-                  button: "#ffffffe0", button_back: "#00000040" },
-        avatar: { size: 128, ring: "#ffffff59", shadow: "#00000080" },
-        field: { width: 220, height: 28, radius: 14 },
-        layout: { center_y: 0.5, spacing: 18, grid_gap: 34 },
-        animation: { fade_ms: 450, shake: { swings: [-14, 14, -14, 8, -8, 6], swing_ms: 67 } },
+        background: { color: "#51535bff", color2: "#2d2d32ff", center_y: 0.382, radius_x: 0.6, radius_y: 0.688,
+                      image: "", fit: "cover", veil: "#00000000" },
+        fonts: { family: "sans-serif", size: 13 },
+        name: { shadow_y: -1, blur: 2, bold: false },
+        colors: { text: "#ffffffff", text_shadow: "#000000cc", label: "#ffffff8c", label_pressed: "#f0f0f0ff",
+                  label_shadow: "#00000066", field: "#ffffffff", field_top: "#eaeaeaff", field_border: "#00000033",
+                  field_text: "#000000ff", placeholder: "#a6a6a6ff", focus: "#4a95e4ff", focus2: "#3c8cdcff",
+                  error: "#e0443eff", button_back: "#00000059", message: "#ffffff8c" },
+        avatar: { size: 84, rim_outer: "#00000017", rim_inner: "#ffffff40", pressed: "#00000054",
+                  other_top: "#9aaac0ff", other_bottom: "#5f6f88ff" },
+        tile: { width: 178, height: 146 },
+        field: { width: 164, height: 30, radius: 6 },
+        layout: { tile_top: -41, field_bottom: 132, bar_bottom: 35, bar_gap: 20 },
+        animation: { select_ms: 500, fade_ms: 250,
+                     shake: { kind: "sine", amplitude: 14, duration_ms: 400, cycles: 3, damping: 0.8,
+                              swings: [-14, 14, -14, 8, -8, 6], swing_ms: 67 } },
         accounts: {}
     };
 }

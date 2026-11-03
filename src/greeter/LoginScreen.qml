@@ -5,9 +5,9 @@ import "Theme.js" as Theme
 
 PanelWindow {
     id: win
+
     property bool main: false
     readonly property var theme: Controller.theme
-    readonly property string phase: Controller.phase
 
     anchors { left: true; right: true; top: true; bottom: true }
     exclusionMode: ExclusionMode.Ignore
@@ -20,15 +20,12 @@ PanelWindow {
         anchors.fill: parent
         theme: win.theme
         themeDir: Controller.themeDir
-        opacity: Controller.themeReady ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 250 } }
     }
 
     Item {
         id: content
         anchors.fill: parent
         visible: win.main && Controller.themeReady && Controller.usersLoaded
-        opacity: 1
 
         NumberAnimation on opacity {
             id: fade
@@ -51,26 +48,22 @@ PanelWindow {
             }
         }
 
-        UserList {
-            id: list
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: Math.round(parent.height * win.theme.layout.center_y - height / 2)
-            visible: Controller.phase === "pick" && Controller.showList && Controller.users.length > 0
-            focus: visible
-        }
-
-        LoginPanel {
-            id: panel
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: Math.round(parent.height * win.theme.layout.center_y - avatarCentre)
-            visible: !list.visible
-            focus: visible
+        Stage {
+            anchors.fill: parent
+            focus: true
         }
 
         PowerBar {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: Math.round(parent.height * 0.06)
+            anchors.bottomMargin: win.theme.layout.bar_bottom
+        }
+
+        Clock {
+            anchors.right: parent.right
+            anchors.rightMargin: 10
+            y: 4
+            theme: win.theme
         }
     }
 }

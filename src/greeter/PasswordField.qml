@@ -4,10 +4,11 @@ import "Theme.js" as Theme
 FocusScope {
     id: box
 
-    required property var theme
+    readonly property var theme: Controller.theme
     property bool asking: false
     readonly property string phase: Controller.auth.phase
     readonly property bool secret: !asking && !Controller.auth.echo
+    readonly property bool failedBadge: Controller.auth.tries > 0 && input.text === "" && !asking
     property bool queued: false
 
     width: theme.field.width
@@ -20,8 +21,7 @@ FocusScope {
         if (asking) return qsTr("Name")
         const a = Controller.auth
         if (a.phase === "prompt" && a.prompt && !/^password:?\s*$/i.test(a.prompt)) return a.prompt.replace(/:\s*$/, "")
-        if (a.phase === "verifying" || a.phase === "leaving" || a.phase === "launching") return ""
-        return qsTr("Enter Password")
+        return qsTr("Password")
     }
 
     function accept() {
@@ -53,27 +53,27 @@ FocusScope {
         function onClearField() { input.text = "" }
     }
 
-    Repeater {
-        model: 3
-        Rectangle {
-            required property int index
-            anchors.fill: parent
-            anchors.margins: -(index + 1)
-            radius: box.theme.field.radius + index + 1
-            color: "transparent"
-            border.width: 1
-            border.color: Theme.color(box.theme.colors.focus) ?? "steelblue"
-            opacity: input.activeFocus ? (0.9 - index * 0.3) : 0
-            Behavior on opacity { NumberAnimation { duration: 120 } }
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -2
+        radius: box.theme.field.radius + 2
+        visible: input.activeFocus
+        gradient: Gradient {
+            GradientStop { position: 0; color: Theme.color(box.theme.colors.focus) ?? "#4a95e4" }
+            GradientStop { position: 1; color: Theme.color(box.theme.colors.focus2) ?? "#3c8cdc" }
         }
     }
 
     Rectangle {
         anchors.fill: parent
         radius: box.theme.field.radius
-        color: Theme.color(box.theme.colors.field) ?? "white"
         border.width: 1
-        border.color: Theme.color(box.theme.colors.field_border) ?? "gray"
+        border.color: Theme.color(box.theme.colors.field_border) ?? "#33000000"
+        gradient: Gradient {
+            GradientStop { position: 0; color: Theme.color(box.theme.colors.field_top) ?? "#eaeaea" }
+            GradientStop { position: Math.min(1, 15 / box.height); color: Theme.color(box.theme.colors.field) ?? "white" }
+            GradientStop { position: 1; color: Theme.color(box.theme.colors.field) ?? "white" }
+        }
     }
 
     Text {
@@ -81,61 +81,94 @@ FocusScope {
         anchors.fill: input
         verticalAlignment: Text.AlignVCenter
         text: box.placeholderText()
-        visible: input.text === ""
+        visible: input.text === "" && !input.preeditText
         color: Theme.color(box.theme.colors.placeholder) ?? "gray"
         font: input.font
         elide: Text.ElideRight
-        renderType: Text.NativeRendering
     }
 
     TextInput {
         id: input
         anchors.fill: parent
-        anchors.leftMargin: Math.round(box.theme.field.radius * 0.7) + 4
-        anchors.rightMargin: arrow.width + 6
+        anchors.leftMargin: 6
+        anchors.rightMargin: (go.visible || badge.visible) ? 30 : 10
+        anchors.topMargin: 3
+        anchors.bottomMargin: 3
         verticalAlignment: TextInput.AlignVCenter
         focus: true
         echoMode: box.secret ? TextInput.Password : TextInput.Normal
         passwordMaskDelay: 0
-        passwordCharacter: "●"
-        readOnly: !box.asking && !["prompt", "info", "starting", "failed"].includes(box.phase)
+        passwordCharacter: "•"
+        readOnly: !box.asking && !["prompt", "info", "starting", "failed", "error"].includes(box.phase)
         color: Theme.color(box.theme.colors.field_text) ?? "black"
         font.family: box.theme.fonts.family
-        font.pixelSize: box.theme.fonts.field_size
+        font.pixelSize: box.theme.fonts.size
         selectByMouse: false
+        clip: true
         inputMethodHints: box.secret ? (Qt.ImhHiddenText | Qt.ImhSensitiveData | Qt.ImhNoPredictiveText) : Qt.ImhNone
-        renderType: Text.NativeRendering
         onAccepted: box.accept()
     }
 
-    Rectangle {
-        id: arrow
+    Item {
+        id: go
+        width: 16
+        height: 17
         anchors.right: parent.right
-        anchors.rightMargin: 3
+        anchors.rightMargin: Math.round((box.height - height) / 2)
         anchors.verticalCenter: parent.verticalCenter
-        width: parent.height - 6
-        height: width
-        radius: width / 2
-        color: Theme.color(box.theme.colors.button_back) ?? "#40000000"
         visible: input.text !== "" || box.asking
-        Text {
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTr("Log In")
+
+        Rectangle {
             anchors.centerIn: parent
-            text: "➜"
-            color: "white"
-            font.pixelSize: parent.height * 0.6
+            width: 16
+            height: 16
+            radius: 8
+            color: goArea.pressed ? "#8c8c8c" : "#a8a8a8"
+        }
+        Canvas {
+            anchors.fill: parent
+            onPaint: {
+                const c = getContext("2d")
+                c.reset()
+                c.fillStyle = "white"
+                c.beginPath()
+                c.moveTo(4, 7)
+                c.lineTo(8, 7)
+                c.lineTo(8, 4)
+                c.lineTo(12.5, 8.5)
+                c.lineTo(8, 13)
+                c.lineTo(8, 10)
+                c.lineTo(4, 10)
+                c.closePath()
+                c.fill()
+            }
         }
         MouseArea {
+            id: goArea
             anchors.fill: parent
+            anchors.margins: -3
             onClicked: box.accept()
         }
     }
 
-    Spinner {
+    Rectangle {
+        id: badge
+        width: 14
+        height: 14
+        radius: 7
         anchors.right: parent.right
-        anchors.rightMargin: 4
+        anchors.rightMargin: 8
         anchors.verticalCenter: parent.verticalCenter
-        height: parent.height - 8
-        width: height
-        running: ["verifying", "leaving", "launching"].includes(box.phase) || box.queued
+        visible: box.failedBadge && !go.visible
+        color: Theme.color(box.theme.colors.error) ?? "#e0443e"
+        Text {
+            anchors.centerIn: parent
+            text: "!"
+            color: "white"
+            font.bold: true
+            font.pixelSize: 11
+        }
     }
 }

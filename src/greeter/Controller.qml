@@ -238,7 +238,8 @@ Singleton {
             root.dispatch({ type: "ready" })
         }
         function onLaunched() {
-            statusFile.setText("launched\n")
+            if (statusFile.path)
+                statusFile.setText("launched\n")
             root.dispatch({ type: "launched" })
         }
         function onError(error) {

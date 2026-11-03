@@ -56,7 +56,7 @@ Item {
                         text: (modelData.id === Controller.sessionId ? "✓ " : "   ") + modelData.name
                         color: hover.containsMouse ? "white" : "black"
                         font.family: chooser.theme.fonts.family
-                        font.pixelSize: chooser.theme.fonts.label_size + 1
+                        font.pixelSize: chooser.theme.fonts.size
                     }
                     MouseArea {
                         id: hover
