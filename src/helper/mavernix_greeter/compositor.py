@@ -36,7 +36,7 @@ def wayfire_ini(theme, keyboard, client):
     cursor = section(theme, "cursor")
     size = cursor.get("size")
     out = ["[core]", "plugins = autostart", "xwayland = false", "exit = none", "close_top_view = none",
-           f"background_color = {bg if isinstance(bg, str) and COLOR.fullmatch(bg) else '#000000ff'}",
+           "background_color = \\" + (bg if isinstance(bg, str) and COLOR.fullmatch(bg) else "#000000ff"),
            "", "[workarounds]", "discard_command_output = false",
            "", "[autostart]", "autostart_wf_shell = false", f"greeter = {client}",
            "", "[input]", f"cursor_size = {size if type(size) is int and 8 <= size <= 256 else 24}"]
@@ -103,4 +103,6 @@ def fontconfig(fonts_dir, cache_dir):
             raise ValueError(f"unsafe path {p!r}")
     return ('<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">\n<fontconfig>\n'
             '  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>\n'
-            f"  <dir>{fonts_dir}</dir>\n  <cachedir>{cache_dir}</cachedir>\n</fontconfig>\n")
+            f"  <dir>{fonts_dir}</dir>\n  <cachedir>{cache_dir}</cachedir>\n"
+            '  <match target="font"><edit name="embolden" mode="assign"><bool>false</bool></edit></match>\n'
+            "</fontconfig>\n")

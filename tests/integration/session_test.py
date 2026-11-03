@@ -181,6 +181,9 @@ def case_launch(c):
         raise Fail(f"rc={rc} fallback={c.fallback_count()} compositor_alive={alive(wf)}")
     if ms > 3000:
         raise Fail(f"greeter took {ms:.0f} ms to leave after launch, greetd terminates it at 5000")
+    bad = [ln for ln in c.text().splitlines() if "invalid option value" in ln or "Error in file" in ln]
+    if bad or "Starting wayfire" not in c.text():
+        raise Fail(f"the compositor refused its config: {bad[:2]}")
 
 
 def case_qs_crashes(c):

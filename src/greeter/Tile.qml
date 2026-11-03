@@ -9,6 +9,7 @@ Item {
     property string avatarSource: ""
     property bool highlighted: false
     property bool showBack: false
+    readonly property alias nameItem: name
     signal clicked()
     signal back()
 
@@ -38,7 +39,7 @@ Item {
     }
 
     Row {
-        anchors.horizontalCenter: parent.horizontalCenter
+        x: Math.round((tile.width - width) / 2)
         y: 97
         spacing: 2
         layoutDirection: Qt.application.layoutDirection

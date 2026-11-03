@@ -53,17 +53,5 @@ PanelWindow {
             focus: true
         }
 
-        PowerBar {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: win.theme.layout.bar_bottom
-        }
-
-        Clock {
-            anchors.right: parent.right
-            anchors.rightMargin: 10
-            y: 4
-            theme: win.theme
-        }
     }
 }

@@ -43,4 +43,5 @@ user = "greeter"
 S
 systemd-tmpfiles --create /usr/lib/tmpfiles.d/mavernix-greeter.conf
 install -d -m 700 -o greeter -g greeter "/run/user/$(id -u greeter)"
+echo 'GREETER_ENV_PROBE=from-etc-environment' >> /etc/environment
 echo "[setup] done"

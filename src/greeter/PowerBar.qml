@@ -27,14 +27,14 @@ Row {
 
             PowerIcon {
                 id: icon
-                anchors.horizontalCenter: parent.horizontalCenter
+                x: Math.round((parent.width - width) / 2)
                 kind: btn.modelData.action
                 pressed: area.pressed
                 focused: btn.activeFocus
             }
             ShadowText {
                 id: label
-                anchors.horizontalCenter: parent.horizontalCenter
+                x: Math.round((parent.width - width) / 2)
                 anchors.top: icon.bottom
                 anchors.topMargin: 4
                 theme: bar.theme

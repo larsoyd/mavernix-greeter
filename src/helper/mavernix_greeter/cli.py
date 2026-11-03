@@ -9,7 +9,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-from . import compositor, sessions, users
+from . import bridge, compositor, sessions, users
 
 CONFIG = "/etc/mavernix-greeter/greeter.toml"
 STATE = "/var/lib/mavernix-greeter/greeter/last.json"
@@ -122,10 +122,13 @@ def main(argv=None):
     d = sub.add_parser("drm-device")
     d.add_argument("--theme-dir", required=True)
     sub.add_parser("default-session")
+    sub.add_parser("bridge")
     f = sub.add_parser("fontconfig")
     f.add_argument("--theme-dir", required=True)
     f.add_argument("--cache", required=True)
     args = ap.parse_args(argv)
+    if args.cmd == "bridge":
+        return bridge.main()
     conf = load_config(args.config)
     if args.cmd == "users":
         found = users.listing(pwd.getpwall(), users.uid_limits("/etc/login.defs"), users.shells("/etc/shells"),

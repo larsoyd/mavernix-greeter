@@ -14,13 +14,65 @@ FocusScope {
     readonly property int chosenIndex: Controller.manual || !listing ? entries.length - 1
                                        : Math.max(0, entries.findIndex(u => u.name === Controller.auth.user))
     property int current: Math.max(0, Controller.users.findIndex(u => u.name === Controller.last.user))
-    readonly property int per: Layout.perPage(width)
+    readonly property int per: Layout.perPage(width, theme.tile.width)
     readonly property var pg: Layout.page(entries.length, chosen ? chosenIndex : current, per)
     readonly property real tileW: theme.tile.width
     readonly property real rowX: Math.round((width - pg.count * tileW) / 2)
     readonly property real slide: chosen ? Math.round(width / 2 - (rowX + (chosenIndex - pg.first + 0.5) * tileW)) : 0
     property real shakeP: 0
     property bool settled: false
+    readonly property var measured: ({
+        line: Math.ceil(probe.implicitHeight), users: Controller.users.length,
+        messageLines: messageText.visible ? messageText.lineCount : 0, sessions: Controller.sessions.length,
+        nameLines: Math.min(2, nameProbe.lineCount), sessionWidth: Math.ceil(chooser.width),
+        barWidth: Math.ceil(bar.implicitWidth), barHeight: Math.ceil(bar.implicitHeight), clockWidth: Math.ceil(clock.implicitWidth)
+    })
+    readonly property var box: Layout.boxes(width, height, theme, Object.assign({ chosen: chosen }, measured))
+    readonly property var chosenBox: Layout.boxes(width, height, theme, Object.assign({ chosen: true }, measured))
+
+    function rectOf(item) {
+        const p = item.mapToItem(stage, 0, 0)
+        return [Math.round(p.x), Math.round(p.y), Math.round(item.width), Math.round(item.height)].join(",")
+    }
+
+    function logLayout() {
+        const parts = [`screen=${width}x${height}`, `clock=${rectOf(clock)}`, `bar=${rectOf(bar)}`]
+        if (chosen) {
+            parts.push(`name=${rectOf(chosenTile ? chosenTile.nameItem : row)}`, `field=${rectOf(entry)}`)
+            if (messageText.visible) parts.push(`message=${rectOf(messageText)}`)
+            if (chooser.visible) parts.push(`session=${rectOf(chooser)}`)
+        } else {
+            parts.push(`row=${rectOf(row)}`)
+        }
+        console.info(`[greeter] layout ${parts.join(" ")}`)
+    }
+
+    property var chosenTile: null
+
+    Timer {
+        id: layoutLog
+        interval: stage.theme.animation.select_ms + 150
+        onTriggered: stage.logLayout()
+    }
+    onChosenChanged: if (!layoutLog.running) layoutLog.start()
+
+    Connections {
+        target: Controller
+        function onPhaseChanged() {
+            if (!layoutLog.running)
+                layoutLog.start()
+        }
+    }
+
+    Text {
+        id: nameProbe
+        visible: false
+        width: 140
+        wrapMode: Text.WordWrap
+        text: stage.entries[stage.chosenIndex] ? stage.entries[stage.chosenIndex].full_name : ""
+        font.family: stage.theme.fonts.family
+        font.pixelSize: stage.theme.fonts.size
+    }
 
     Timer {
         interval: 50
@@ -28,6 +80,8 @@ FocusScope {
         onTriggered: {
             stage.settled = true
             Controller.markShown()
+            if (!layoutLog.running)
+                layoutLog.start()
             console.info(`[greeter] font requested=${JSON.stringify(probe.font.family)} used=${JSON.stringify(probe.fontInfo.family)}`)
         }
     }
@@ -37,6 +91,7 @@ FocusScope {
         visible: false
         text: "Ag"
         font.family: stage.theme.fonts.family
+        font.pixelSize: stage.theme.fonts.size
     }
 
     function choose(i) {
@@ -88,7 +143,7 @@ FocusScope {
     Item {
         id: row
         x: stage.rowX + stage.slide
-        y: Math.round(stage.cy + stage.theme.layout.tile_top)
+        y: stage.box.tile0.y
         width: stage.pg.count * stage.tileW
         height: stage.theme.tile.height
         Behavior on x {
@@ -109,6 +164,8 @@ FocusScope {
                 highlighted: !stage.chosen && stage.activeFocus && at === stage.current
                 showBack: stage.chosen && mine && stage.listing
                 opacity: stage.chosen && !mine ? 0 : 1
+                Component.onCompleted: if (mine) stage.chosenTile = this
+                onMineChanged: if (mine) stage.chosenTile = this
                 visible: opacity > 0
                 Behavior on opacity { enabled: stage.settled; NumberAnimation { duration: stage.theme.animation.select_ms } }
                 onClicked: if (!stage.chosen) stage.choose(at)
@@ -122,7 +179,7 @@ FocusScope {
         width: field.width
         height: field.height
         x: Math.round((stage.width - width) / 2 + Layout.shakeX(stage.theme.animation.shake, stage.shakeP))
-        y: Math.round(stage.cy + stage.theme.layout.field_bottom - height)
+        y: stage.chosenBox.field.y
         opacity: stage.chosen ? 1 : 0
         visible: opacity > 0
         Behavior on opacity { enabled: stage.settled; NumberAnimation { duration: stage.theme.animation.select_ms } }
@@ -146,8 +203,9 @@ FocusScope {
     }
 
     ShadowText {
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: entry.y + entry.height + 14
+        id: messageText
+        x: Math.round((stage.width - width) / 2)
+        y: stage.chosenBox.message ? stage.chosenBox.message.y : entry.y + entry.height + 14
         width: 360
         theme: stage.theme
         text: stage.message()
@@ -161,8 +219,22 @@ FocusScope {
     }
 
     SessionChooser {
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: entry.y + entry.height + 60
+        id: chooser
+        x: Math.round((stage.width - width) / 2)
+        y: stage.chosenBox.session ? stage.chosenBox.session.y : entry.y + entry.height + 60
         visible: stage.chosen && Controller.sessions.length > 1
+    }
+
+    PowerBar {
+        id: bar
+        x: stage.box.bar.x
+        y: stage.box.bar.y
+    }
+
+    Clock {
+        id: clock
+        x: stage.box.clock.x
+        y: stage.box.clock.y
+        theme: stage.theme
     }
 }

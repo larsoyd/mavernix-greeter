@@ -62,9 +62,9 @@ class Ini(unittest.TestCase):
 
     def test_background_colour_is_qt_free_rgba(self):
         c = self.build({"background": {"color2": "#10203040"}})
-        self.assertEqual(c["core"]["background_color"], "#10203040")
+        self.assertEqual(c["core"]["background_color"], "\\#10203040")
         c = self.build({"background": {"color2": "nope"}})
-        self.assertEqual(c["core"]["background_color"], "#000000ff")
+        self.assertEqual(c["core"]["background_color"], "\\#000000ff")
 
 
 class Keyboard(unittest.TestCase):
@@ -95,6 +95,7 @@ class Fonts(unittest.TestCase):
         self.assertIn("<include ignore_missing=\"yes\">/etc/fonts/fonts.conf</include>", conf)
         self.assertIn("<dir>/var/lib/t/current/fonts</dir>", conf)
         self.assertIn("<cachedir>/run/user/9/g/fc</cachedir>", conf)
+        self.assertIn('<edit name="embolden" mode="assign"><bool>false</bool></edit>', conf)
 
     def test_markup_in_paths_refused(self):
         with self.assertRaises(ValueError):

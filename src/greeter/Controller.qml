@@ -3,7 +3,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Services.Greetd
 import "Auth.js" as Auth
 import "Theme.js" as Theme
 
@@ -14,7 +13,7 @@ Singleton {
     readonly property string themeDir: Quickshell.env("MAVERNIX_GREETER_THEME_DIR") || "/usr/share/mavernix-greeter/themes/neutral"
     readonly property int watchdogMs: Number(Quickshell.env("MAVERNIX_GREETER_WATCHDOG_MS")) || 30000
 
-    property var auth: Auth.initial(Greetd.available)
+    property var auth: Auth.initial((Quickshell.env("GREETD_SOCK") ?? "") !== "")
     property var theme: Theme.defaults()
     property bool themeReady: false
     property var users: []
@@ -62,16 +61,16 @@ Singleton {
 
     function run(effect) {
         switch (effect.do) {
-        case "create": Greetd.createSession(effect.user); break
-        case "respond": Greetd.respond(effect.value); break
-        case "cancel": Greetd.cancelSession(); break
+        case "create": tell({ op: "create", user: effect.user }); break
+        case "respond": tell({ op: "respond", value: effect.value }); break
+        case "cancel": tell({ op: "cancel" }); break
         case "clear": clearField(); break
         case "shake": shake(); break
         case "fade": fadeOut(); break
         case "unfade": fadeIn(); break
         case "launch":
             log(`launch session=${sessionId}`)
-            Greetd.launch(effect.cmd, effect.env, true)
+            tell({ op: "start", cmd: effect.cmd, env: effect.env })
             break
         case "remember": helperRun(["remember", effect.user, effect.session]); break
         }
@@ -158,7 +157,7 @@ Singleton {
         running: ["starting", "verifying"].includes(root.phase)
         onTriggered: {
             root.log(`watchdog phase=${root.phase} waited_ms=${interval}`)
-            Greetd.cancelSession()
+            tell({ op: "cancel" })
             root.dispatch({ type: "inactive" })
         }
     }
@@ -244,34 +243,78 @@ Singleton {
         }
     }
 
-    Connections {
-        target: Greetd
-        function onAuthMessage(message, error, responseRequired, echoResponse) {
-            root.log(`message required=${responseRequired} echo=${echoResponse} error=${error}`)
-            root.dispatch({ type: "message", text: message, error: error, required: responseRequired, echo: echoResponse })
+    property var pending: []
+    property bool bridgeUp: false
+
+    function tell(op) {
+        if (!bridgeUp) {
+            pending.push(op)
+            bridge.running = true
+            return
         }
-        function onAuthFailure(message) {
-            root.log("auth result=failure")
-            root.dispatch({ type: "failure", text: message })
-        }
-        function onReadyToLaunch() {
-            root.log("auth result=success")
-            root.dispatch({ type: "ready" })
-        }
-        function onLaunched() {
+        bridge.write(JSON.stringify(op) + "\n")
+    }
+
+    function heard(e) {
+        switch (e.ev) {
+        case "connected":
+            bridgeUp = true
+            pending.splice(0).forEach(tell)
+            break
+        case "unavailable":
+            log("greetd unavailable")
+            auth = Auth.initial(false)
+            break
+        case "message":
+            log(`message kind=${e.kind}`)
+            dispatch({ type: "message", text: e.text, error: e.kind === "error",
+                       required: e.kind === "visible" || e.kind === "secret", echo: e.kind === "visible" })
+            break
+        case "failure":
+            log("auth result=failure")
+            dispatch({ type: "failure", text: e.text })
+            break
+        case "ready":
+            log("auth result=success")
+            dispatch({ type: "ready" })
+            break
+        case "error":
+            log(`greetd error stage=${e.stage} text=${JSON.stringify(e.text)}`)
+            dispatch({ type: "error", text: e.text })
+            break
+        case "launched":
             if (statusFile.path)
                 statusFile.setText("launched\n")
-            root.dispatch({ type: "launched" })
-        }
-        function onError(error) {
-            root.log(`greetd error=${JSON.stringify(error)}`)
-            root.dispatch({ type: "error", text: error })
-        }
-        function onStateChanged() {
-            if (Greetd.state === GreetdState.Inactive)
-                root.dispatch({ type: "inactive" })
+            dispatch({ type: "launched" })
+            Qt.quit()
+            break
+        case "lost":
+            log("greetd connection lost")
+            dispatch({ type: "inactive" })
+            break
         }
     }
 
-    Component.onCompleted: log(`start available=${Greetd.available}`)
+    Process {
+        id: bridge
+        command: [root.helper, "bridge"]
+        running: true
+        stdinEnabled: true
+        stdout: SplitParser {
+            onRead: line => {
+                try {
+                    root.heard(JSON.parse(line))
+                } catch (e) {
+                    root.log("bridge problem=unreadable")
+                }
+            }
+        }
+        onExited: code => {
+            root.bridgeUp = false
+            if (code !== 0 && root.auth.phase !== "unavailable")
+                root.log(`bridge exited rc=${code}`)
+        }
+    }
+
+    Component.onCompleted: log(`start available=${auth.phase !== "unavailable"}`)
 }

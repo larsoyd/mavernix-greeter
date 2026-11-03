@@ -131,6 +131,25 @@ def brightness(path):
     return sum(1 for p in px if p > 245), sum(px) / len(px)
 
 
+def check_layout(run):
+    lines = re.findall(r"\[greeter\] layout (.*)", run.text())
+    for line in lines:
+        fields = dict(kv.split("=", 1) for kv in line.split())
+        sw, sh = map(int, fields.pop("screen").split("x"))
+        rects = {k: tuple(map(int, v.split(","))) for k, v in fields.items()}
+        for k, (x, y, w, h) in rects.items():
+            if x < 0 or y < 0 or x + w > sw or y + h > sh:
+                raise Fail(f"layout {k}={x},{y},{w},{h} leaves the {sw}x{sh} screen")
+        names = sorted(rects)
+        for i, a in enumerate(names):
+            for b in names[i + 1:]:
+                ax, ay, aw, ah = rects[a]
+                bx, by, bw, bh = rects[b]
+                if ax < bx + bw + 6 and bx < ax + aw + 6 and ay < by + bh + 6 and by < ay + ah + 6:
+                    raise Fail(f"layout {a}={rects[a]} and {b}={rects[b]} closer than 6 px")
+    return len(lines)
+
+
 def no_secrets(run):
     for f in OUT.iterdir():
         if f.suffix in (".log", ".txt"):
@@ -167,6 +186,7 @@ def white_box(path):
 
 def password_ok(run):
     run.wait(r"phase=prompt")
+    settled_layout(run)
     time.sleep(0.7)
     run.shot("prompt")
     x0, y0, x1, y1, w, h = white_box(OUT / "prompt.png")
@@ -216,7 +236,8 @@ def multi(run):
     run.wait(r"phase=prompt")
     run.wf.type("right")
     run.wf.key("KEY_ENTER")
-    run.wait(r"message required=true echo=true")
+    run.wait(r"message kind=visible")
+    time.sleep(0.8)
     run.shot("code")
     run.wf.type("123456")
     run.wf.key("KEY_ENTER")
@@ -227,7 +248,8 @@ def expired(run):
     run.wait(r"phase=prompt")
     run.wf.type("right")
     run.wf.key("KEY_ENTER")
-    run.wait(r"message required=false echo=true error=true")
+    run.wait(r"message kind=error")
+    time.sleep(0.8)
     for _ in range(2):
         time.sleep(0.3)
         run.wf.type("next")
@@ -240,6 +262,7 @@ def fail_start(run):
     run.wf.type("right")
     run.wf.key("KEY_ENTER")
     run.wait(r"phase=error from=launching event=error problem=launch")
+    time.sleep(0.8)
     run.shot("launch-error")
     run.wf.key("KEY_ENTER")
     run.wait(r"phase=starting from=error event=retry")
@@ -249,8 +272,23 @@ def fail_start(run):
     launched(run)
 
 
+def cancel_during_touch(run):
+    run.wait(r"phase=info")
+    run.wf.key("KEY_ESC")
+    run.wait(r"phase=pick from=info event=cancel")
+    run.wf.key("KEY_ENTER")
+    run.wait(r"phase=starting from=pick event=select")
+    run.wait(r"phase=prompt", 10)
+    if "auth result=success" in run.text():
+        raise Fail("a late answer was taken for a login")
+    run.wf.type("right")
+    run.wf.key("KEY_ENTER")
+    launched(run)
+
+
 def pick_second_user(run):
     run.wait(r"users count=2")
+    settled_layout(run)
     time.sleep(0.5)
     run.shot("list")
     run.wf.key("KEY_RIGHT")
@@ -278,13 +316,14 @@ def greetd_dies(run):
     run.greetd.wait(3)
     run.wf.type("right")
     run.wf.key("KEY_ENTER")
-    run.wait(r"watchdog phase=verifying", 6)
+    run.wait(r"greetd connection lost", 6)
     run.wait(r"phase=error .*problem=lost")
     run.shot("lost")
 
 
 def two_outputs(run):
     run.wait(r"phase=prompt")
+    settled_layout(run)
     time.sleep(0.5)
     outs = run.wf.call("window-rules/list-outputs")
     names = [o["name"] for o in outs] if isinstance(outs, list) else []
@@ -304,6 +343,13 @@ def two_outputs(run):
             raise Fail(f"other output {n} white_px={white} mean={mean:.1f}")
 
 
+LAYOUT_CHECKED = {"password_ok", "pick_second_user", "expired", "multi", "two_outputs", "fail_start"}
+
+
+def settled_layout(run, count=1):
+    run.wait(r"(\[greeter\] layout .*){%d}" % count if count > 1 else r"\[greeter\] layout", 4)
+
+
 SCENARIOS = {
     "password_ok": ("password", password_ok, {}),
     "wrong_then_ok": ("password", wrong_then_ok, {}),
@@ -313,6 +359,7 @@ SCENARIOS = {
     "expired": ("expired", expired, {}),
     "fail_start": ("fail_start", fail_start, {}),
     "pick_second_user": ("password", pick_second_user, {"STUB_USERS": "ada,bob"}),
+    "cancel_during_touch": ("u2f_then_password", cancel_during_touch, {}),
     "unavailable": (None, unavailable, {}),
     "greetd_dies": ("password", greetd_dies, {"MAVERNIX_GREETER_WATCHDOG_MS": "3000"}),
     "two_outputs": ("password", two_outputs, {}),
@@ -328,6 +375,9 @@ def main():
         run.start_greeter(sock, **env)
         body(run)
         no_secrets(run)
+        layouts = check_layout(run)
+        if SCENARIO in LAYOUT_CHECKED and layouts == 0:
+            raise Fail("no layout was logged")
         print(f"[driver] scenario={SCENARIO} result=pass seconds={time.monotonic() - t0:.2f}")
         return 0
     except Exception as e:

@@ -3,6 +3,11 @@ import json
 import os
 import sys
 
+if sys.argv[1] == "bridge":
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src", "helper"))
+    from mavernix_greeter import bridge
+    sys.exit(bridge.main())
+
 record = os.environ["STUB_RECORD"]
 users = [{"name": n, "full_name": n.title() + " Tester", "uid": 1000 + i, "avatar": ""}
          for i, n in enumerate(os.environ.get("STUB_USERS", "ada").split(",")) if n]

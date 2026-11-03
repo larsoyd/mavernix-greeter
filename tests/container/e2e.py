@@ -89,6 +89,10 @@ def greeter_up(n):
     if len(wayfires) != 1:
         raise Fail(f"compositors running={len(wayfires)} at greeter start {n}")
     ipc("stipc/move_cursor", x=1, y=1)
+    qs = procs({"qs", "quickshell"})
+    env = Path(f"/proc/{qs[0]}/environ").read_bytes().split(b"\0") if qs else []
+    if b"GREETER_ENV_PROBE=from-etc-environment" not in env:
+        raise Fail("the greeter did not get /etc/environment through PAM")
 
 
 def login(n, wrong_first=False):
