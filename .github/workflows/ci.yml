@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container: archlinux:latest
+    steps:
+      - name: packages
+        run: pacman -Syu --noconfirm --needed git meson python python-pillow nodejs shellcheck wayfire quickshell grim dbus ttf-dejavu
+      - uses: actions/checkout@v4
+      - name: lint
+        run: shellcheck src/session/* tools/migrate tests/integration/*.sh tests/container/*.sh
+      - name: unit
+        run: |
+          meson setup build --prefix=/usr --libexecdir=lib
+          meson test -C build --print-errorlogs
+      - name: greeter
+        run: |
+          bash tests/integration/run_all.sh "$RUNNER_TEMP/greeter"
+      - name: session
+        run: bash tests/integration/session_run.sh "$RUNNER_TEMP/session"
+      - name: logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: ${{ runner.temp }}
