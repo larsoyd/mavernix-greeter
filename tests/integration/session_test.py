@@ -27,10 +27,13 @@ def tree(tmp, greeter=True):
     for d in (lib, share / "themes", state / "greeter"):
         d.mkdir(parents=True)
     (share / "themes" / "neutral").symlink_to(REPO / "data/themes/neutral")
+    # PACKAGE_ROOT runs the scripts and the greeter from an unpacked package instead of the tree
+    root = os.environ.get("PACKAGE_ROOT")
+    scripts = Path(root) / "usr/lib/mavernix-greeter" if root else REPO / "src/session"
     if greeter:
-        (share / "greeter").symlink_to(REPO / "src/greeter")
+        (share / "greeter").symlink_to(Path(root) / "usr/share/mavernix-greeter/greeter" if root else REPO / "src/greeter")
     for name in ("greeter-session", "run-greeter"):
-        (lib / name).symlink_to(REPO / "src/session" / name)
+        (lib / name).symlink_to(scripts / name)
     (lib / "helper").write_text(f"""#!/usr/bin/env bash
 case $1 in users|sessions|power-caps|remember|power) exec python3 {HERE}/stub_helper.py "$@";; esac
 PYTHONPATH={REPO}/src/helper exec python3 -c 'import sys; from mavernix_greeter import cli; sys.exit(cli.main(sys.argv[1:]))' "$@"
