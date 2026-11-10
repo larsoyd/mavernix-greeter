@@ -83,7 +83,8 @@ def alive(pid):
 
 
 class Case:
-    def __init__(self, name, tmp, greeter=True, compositor=None, tty=False, theme=False, tries=None, extra=None):
+    def __init__(self, name, tmp, greeter=True, compositor=None, tty=False, theme=False, tries=None, extra=None,
+                 stub=None, files=None):
         self.name, self.tmp = name, tmp
         self.out = OUT / name
         self.out.mkdir(parents=True, exist_ok=True)
@@ -95,6 +96,13 @@ class Case:
             (state / "theme" / "current").symlink_to("snap-1")
         if tries is not None:
             (state / "greeter" / "tries").write_text(f"{tries}\n")
+        if stub:
+            compositor = str(tmp / "compositor-stub")
+            Path(compositor).write_text(stub.format(tmp=tmp))
+            Path(compositor).chmod(0o755)
+        for name_, text in (files or {}).items():
+            (tmp / name_).write_text(text)
+        extra = {k: v.format(tmp=tmp) for k, v in (extra or {}).items()}
         self.rt = tmp / "rt"
         self.rt.mkdir(mode=0o700)
         self.sock = self.rt / "wf.sock"
@@ -196,9 +204,86 @@ def case_qs_crashes(c):
 
 
 def case_compositor_fails(c):
-    rc = c.finish(10)
+    rc = c.finish(15)
     if c.fallback_count() != 1 or rc != 0:
         raise Fail(f"rc={rc} fallback={c.fallback_count()}")
+    if c.text().count("compositor_exit=") != 4 or "reason=greeter_none" not in c.text():
+        raise Fail("the compositor was not tried four times before the text login")
+
+
+def case_compositor_recovers(c):
+    c.wait_for("prompt", lambda: "phase=prompt" in c.text(), 25)
+    if c.text().count("compositor_exit=") != 2:
+        raise Fail("expected two failed starts before the one that worked")
+    c.proc.send_signal(signal.SIGTERM)
+    c.finish(5)
+    if c.fallback_count():
+        raise Fail("the text login was started although the compositor came up")
+
+
+def case_waits_for_console(c):
+    c.wait_for("waiting", lambda: "console=waiting vt=7 active=tty3" in c.text(), 5)
+    time.sleep(1.5)
+    if (c.rt / "mavernix-greeter" / "compositor.pid").exists():
+        raise Fail("the compositor was started on a console that is not shown")
+    (c.tmp / "active").write_text("tty7\n")
+    c.wait_for("prompt", lambda: "phase=prompt" in c.text(), 20)
+    c.proc.send_signal(signal.SIGTERM)
+    c.finish(5)
+    if "compositor_exit=" in c.text().split("phase=prompt")[0]:
+        raise Fail("a compositor start was spent while the console was away")
+
+
+def case_console_wait_ends(c):
+    c.wait_for("end of the wait", lambda: "console=still_away vt=7 waited_s=1" in c.text(), 6)
+    c.compositor_pid()
+    c.proc.send_signal(signal.SIGTERM)
+    c.finish(5)
+
+
+def case_term_while_waiting(c):
+    c.wait_for("waiting", lambda: "console=waiting" in c.text(), 5)
+    c.proc.send_signal(signal.SIGTERM)
+    rc = c.finish(3)
+    if rc != 0 or c.fallback_count():
+        raise Fail(f"rc={rc} fallback={c.fallback_count()}")
+
+
+def case_never_shown(c):
+    rc = c.finish(30)
+    if c.fallback_count() != 1 or c.text().count("result=not_shown") != 4:
+        raise Fail(f"rc={rc} fallback={c.fallback_count()} not_shown={c.text().count('result=not_shown')}")
+
+
+def case_away_is_not_a_failure(c):
+    c.wait_for("end of the wait", lambda: "console=still_away" in c.text(), 6)
+    c.compositor_pid()
+    time.sleep(3)
+    if "result=not_shown" in c.text():
+        raise Fail("a greeter nobody could see was stopped for not showing")
+    c.proc.send_signal(signal.SIGTERM)
+    c.finish(5)
+
+
+def case_old_status_is_forgotten(c):
+    c.wait_for("second try stopped for not showing", lambda: "compositor_try=2 result=not_shown" in c.text(), 12)
+    c.proc.send_signal(signal.SIGTERM)
+    c.finish(5)
+
+
+def case_neutral_after_failures(c):
+    c.finish(15)
+    t = c.text()
+    at = t.find("theme=neutral reason=compositor_failed")
+    if at < 0 or t[:at].count("compositor_exit=") != 2 or t[at:].count("compositor_exit=") != 2:
+        raise Fail("the plain look was not used for the second half of the tries")
+
+
+def case_crashing_greeter_tries_plain_look(c):
+    rc = c.finish(45)
+    t = c.text()
+    if c.fallback_count() != 1 or t.count("result=crashed") != 6 or "theme=neutral reason=greeter_failed" not in t:
+        raise Fail(f"rc={rc} fallback={c.fallback_count()} crashed={t.count('result=crashed')}")
 
 
 def case_term(c):
@@ -260,6 +345,32 @@ CASES = {
     "launch": (case_launch, {}),
     "qs_crashes": (case_qs_crashes, {"greeter": False}),
     "compositor_fails": (case_compositor_fails, {"compositor": "/bin/false"}),
+    "compositor_recovers": (case_compositor_recovers, {"stub": """#!/usr/bin/env bash
+n=$(cat {tmp}/starts 2>/dev/null || echo 0)
+echo $((n + 1)) > {tmp}/starts
+(( n < 2 )) && exit 1
+exec {tmp}/wayfire-test "$@"
+"""}),
+    "waits_for_console": (case_waits_for_console, {"files": {"active": "tty3\n"}, "extra": {
+        "XDG_VTNR": "7", "MAVERNIX_GREETER_ACTIVE_VT": "{tmp}/active"}}),
+    "console_wait_ends": (case_console_wait_ends, {"files": {"active": "tty3\n"}, "extra": {
+        "XDG_VTNR": "7", "MAVERNIX_GREETER_ACTIVE_VT": "{tmp}/active", "MAVERNIX_GREETER_CONSOLE_WAIT": "1"}}),
+    "term_while_waiting": (case_term_while_waiting, {"files": {"active": "tty3\n"}, "extra": {
+        "XDG_VTNR": "7", "MAVERNIX_GREETER_ACTIVE_VT": "{tmp}/active"}}),
+    "never_shown": (case_never_shown, {"stub": "#!/usr/bin/env bash\nexec sleep 40\n",
+                                       "extra": {"MAVERNIX_GREETER_SHOW_WAIT": "1"}}),
+    "away_is_not_a_failure": (case_away_is_not_a_failure, {
+        "stub": "#!/usr/bin/env bash\nexec sleep 40\n", "files": {"active": "tty3\n"}, "extra": {
+            "XDG_VTNR": "7", "MAVERNIX_GREETER_ACTIVE_VT": "{tmp}/active", "MAVERNIX_GREETER_CONSOLE_WAIT": "1",
+            "MAVERNIX_GREETER_SHOW_WAIT": "1"}}),
+    "old_status_is_forgotten": (case_old_status_is_forgotten, {"stub": """#!/usr/bin/env bash
+n=$(cat {tmp}/starts 2>/dev/null || echo 0)
+echo $((n + 1)) > {tmp}/starts
+(( n == 0 )) && echo shown > "$MAVERNIX_GREETER_STATUS" && exit 1
+exec sleep 40
+""", "extra": {"MAVERNIX_GREETER_SHOW_WAIT": "1"}}),
+    "neutral_after_failures": (case_neutral_after_failures, {"compositor": "/bin/false", "theme": True}),
+    "crashing_greeter_tries_plain_look": (case_crashing_greeter_tries_plain_look, {"greeter": False, "theme": True}),
     "term": (case_term, {}),
     "kill": (case_kill, {}),
     "fallback_keeps_terminal": (case_fallback_keeps_terminal, {"greeter": False, "tty": True}),

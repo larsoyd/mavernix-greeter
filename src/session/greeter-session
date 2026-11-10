@@ -6,6 +6,12 @@ lib=${MAVERNIX_GREETER_LIBDIR:-/usr/lib/mavernix-greeter}
 share=${MAVERNIX_GREETER_DATADIR:-/usr/share/mavernix-greeter}
 state=${MAVERNIX_GREETER_STATEDIR:-/var/lib/mavernix-greeter}
 fallback=${MAVERNIX_GREETER_FALLBACK:-$lib/text-greeter}
+attempts=${MAVERNIX_GREETER_COMPOSITOR_TRIES:-4}
+console_wait=${MAVERNIX_GREETER_CONSOLE_WAIT:-3600}
+show_wait=${MAVERNIX_GREETER_SHOW_WAIT:-60}
+active_vt=${MAVERNIX_GREETER_ACTIVE_VT:-/sys/class/tty/tty0/active}
+neutral=$share/themes/neutral
+given_drm=${WLR_DRM_DEVICES:-}
 
 log() { printf '[greeter-session] %s\n' "$*" >&2; }
 
@@ -33,7 +39,7 @@ run=$XDG_RUNTIME_DIR/mavernix-greeter
 tries_file=$state/greeter/tries
 tries=$(cat "$tries_file" 2>/dev/null)
 [[ $tries =~ ^[0-9]+$ ]] || tries=0
-theme=$share/themes/neutral
+theme=$neutral
 if [[ -r $state/theme/current/theme.json ]]; then
   if (( tries < 3 )); then
     theme=$(readlink -f "$state/theme/current")
@@ -42,44 +48,122 @@ if [[ -r $state/theme/current/theme.json ]]; then
   fi
 fi
 echo $((tries + 1)) > "$tries_file" 2>/dev/null
-export MAVERNIX_GREETER_THEME_DIR=$theme
 export MAVERNIX_GREETER_HELPER=$lib/helper
 export MAVERNIX_GREETER_STATUS=$run/status
 export XDG_CACHE_HOME=$run/cache XDG_STATE_HOME=$run/state XDG_DATA_HOME=$run/data XDG_CONFIG_HOME=$run/config
 export QS_DISABLE_CRASH_HANDLER=1 WLR_LOG=${WLR_LOG:-error}
-export XCURSOR_PATH=$theme/cursors:/usr/local/share/icons:/usr/share/icons
 unset DISPLAY WAYLAND_DISPLAY
 
-if timeout 10 "$lib/helper" fontconfig --theme-dir "$theme" --cache "$run/fontconfig" > "$run/fonts.conf"; then
-  export FONTCONFIG_FILE=$run/fonts.conf
+prepare() {
+  local drm main
+  theme=$1
+  export MAVERNIX_GREETER_THEME_DIR=$theme
+  export XCURSOR_PATH=$theme/cursors:/usr/local/share/icons:/usr/share/icons
+  unset FONTCONFIG_FILE MAVERNIX_GREETER_MAIN_OUTPUT
+  if timeout 10 "$lib/helper" fontconfig --theme-dir "$theme" --cache "$run/fontconfig" > "$run/fonts.conf"; then
+    export FONTCONFIG_FILE=$run/fonts.conf
+  fi
+  if [[ -z $given_drm ]]; then
+    unset WLR_DRM_DEVICES
+    drm=$(timeout 10 "$lib/helper" drm-device --theme-dir "$theme") && [[ -n $drm ]] && export WLR_DRM_DEVICES=$drm
+  fi
+  main=$(timeout 10 python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1])).get("display",{}).get("main_output",""))' \
+    "$theme/theme.json" 2>/dev/null) && export MAVERNIX_GREETER_MAIN_OUTPUT=$main
+  timeout 10 "$lib/helper" compositor --theme-dir "$theme" --client "$lib/run-greeter" > "$run/wayfire.ini"
+}
+
+use_neutral() {
+  log "theme=neutral reason=$1"
+  prepare "$neutral" || fall_back compositor_config
+}
+
+console_active() {
+  [[ ${XDG_VTNR:-} =~ ^[0-9]+$ && -r $active_vt ]] || return 0
+  [[ $(<"$active_vt") == "tty$XDG_VTNR" ]]
+}
+
+# a compositor started on a console that is not shown gives up after ten seconds
+wait_for_console() {
+  local i
+  console_active && return 0
+  log "console=waiting vt=$XDG_VTNR active=$(<"$active_vt")"
+  for (( i = 0; i < console_wait * 5 && !stopping; i++ )); do
+    if console_active; then
+      log "console=back vt=$XDG_VTNR waited_ms=$((i * 200))"
+      return 0
+    fi
+    sleep 0.2
+  done
+  (( stopping )) || log "console=still_away vt=$XDG_VTNR waited_s=$console_wait"
+}
+
+stop_compositor() {
+  local i
+  kill -TERM "$wf" 2>/dev/null
+  for (( i = 0; i < 10; i++ )); do
+    kill -0 "$wf" 2>/dev/null || return 0
+    sleep 0.2
+  done
+  kill -KILL "$wf" 2>/dev/null
+}
+
+run_compositor() {
+  local t0=$SECONDS shown=0 seen
+  started=$(date +%s%N)
+  : > "$run/status"
+  # the compositor keeps this pid through exec, its clients need it to stop it
+  # shellcheck disable=SC2016
+  bash -c 'export MAVERNIX_GREETER_WAYFIRE_PID=$$; exec setpriv --pdeathsig KILL -- "$@"' greeter \
+    "${MAVERNIX_GREETER_COMPOSITOR:-wayfire}" -c "$run/wayfire.ini" &
+  wf=$!
+  echo "$wf" > "$run/compositor.pid"
+  while kill -0 "$wf" 2>/dev/null; do
+    if (( !shown && !stopping )); then
+      seen=$(cat "$run/status" 2>/dev/null)
+      if [[ $seen == shown || $seen == launched ]]; then
+        shown=1
+      elif (( SECONDS - t0 >= show_wait )) && console_active; then
+        log "compositor_try=$n result=not_shown waited_s=$show_wait"
+        stop_compositor
+      fi
+    fi
+    sleep 0.2
+  done
+  wait "$wf" 2>/dev/null
+  rc=$?
+  status=$(cat "$run/status" 2>/dev/null)
+  status=${status:-none}
+}
+
+wf='' stopping=0 n=1
+trap 'stopping=1; [[ -n $wf ]] && kill -TERM "$wf" 2>/dev/null' TERM INT HUP
+
+if ! prepare "$theme"; then
+  [[ $theme != "$neutral" ]] || fall_back compositor_config
+  use_neutral compositor_config
 fi
 
-if [[ -z ${WLR_DRM_DEVICES:-} ]]; then
-  drm=$(timeout 10 "$lib/helper" drm-device --theme-dir "$theme") && [[ -n $drm ]] && export WLR_DRM_DEVICES=$drm
-fi
-main=$(timeout 10 python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1])).get("display",{}).get("main_output",""))' \
-  "$theme/theme.json" 2>/dev/null) && export MAVERNIX_GREETER_MAIN_OUTPUT=$main
-
-timeout 10 "$lib/helper" compositor --theme-dir "$theme" --client "$lib/run-greeter" > "$run/wayfire.ini" \
-  || fall_back compositor_config
-
-started=$(date +%s%N)
-# the compositor keeps this pid through exec, its clients need it to stop it
-# shellcheck disable=SC2016
-bash -c 'export MAVERNIX_GREETER_WAYFIRE_PID=$$; exec setpriv --pdeathsig KILL -- "$@"' greeter \
-  "${MAVERNIX_GREETER_COMPOSITOR:-wayfire}" -c "$run/wayfire.ini" &
-wf=$!
-echo "$wf" > "$run/compositor.pid"
-stopping=0
-trap 'stopping=1; kill -TERM "$wf" 2>/dev/null' TERM INT HUP
-while kill -0 "$wf" 2>/dev/null; do
-  wait "$wf"
+while :; do
+  wait_for_console
+  (( stopping )) && exit 0
+  run_compositor
+  log "compositor_exit=$rc status=$status ms=$(( ($(date +%s%N) - started) / 1000000 )) try=$n"
+  [[ $status == launched || $status == shown ]] && echo 0 > "$tries_file" 2>/dev/null
+  [[ $status == launched ]] && exit 0
+  (( stopping )) && exit 0
+  why=''
+  case $status in
+    no_sessions) break ;;
+    failed)
+      # the greeter kept crashing in a working compositor, only another look can change that
+      [[ $theme == "$neutral" ]] && break
+      why=greeter_failed ;;
+    *)
+      (( n >= attempts )) && break
+      (( n >= attempts / 2 )) && why=compositor_failed ;;
+  esac
+  n=$((n + 1))
+  sleep 1
+  [[ -n $why && $theme != "$neutral" ]] && use_neutral "$why"
 done
-wait "$wf" 2>/dev/null
-rc=$?
-status=$(cat "$run/status" 2>/dev/null || echo none)
-log "compositor_exit=$rc status=$status ms=$(( ($(date +%s%N) - started) / 1000000 ))"
-[[ $status == launched || $status == shown ]] && echo 0 > "$tries_file" 2>/dev/null
-[[ $status == launched ]] && exit 0
-(( stopping )) && exit 0
 fall_back "greeter_$status"

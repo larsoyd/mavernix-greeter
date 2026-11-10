@@ -3,7 +3,9 @@
 set -uo pipefail
 lib=${MAVERNIX_GREETER_LIBDIR:-/usr/lib/mavernix-greeter}
 cmd=$(timeout 10 "$lib/helper" default-session 2>/dev/null) || cmd=/bin/sh
+why="The login screen could not start. Log in here to reach the desktop."
 if command -v tuigreet >/dev/null; then
-  exec tuigreet --time --remember --cmd "$cmd"
+  exec tuigreet --time --remember --greeting "$why" --cmd "$cmd"
 fi
+printf '\n%s\n\n' "$why"
 exec agreety --cmd "$cmd"
