@@ -109,6 +109,7 @@ FocusScope {
         clip: true
         inputMethodHints: box.secret ? (Qt.ImhHiddenText | Qt.ImhSensitiveData | Qt.ImhNoPredictiveText) : Qt.ImhNone
         onAccepted: box.accept()
+        onTextEdited: if (!box.asking && box.phase === "error") Controller.dispatch({ type: "retry" })
     }
 
     Item {

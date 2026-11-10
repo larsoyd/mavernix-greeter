@@ -17,6 +17,7 @@ SCENARIOS = {
     "fail_start": [("secret", "Password: ", "right")],
     "slow": [("secret", "Password: ", "right")],
     "slow_start": [("secret", "Password: ", "right")],
+    "mute": [("secret", "Password: ", "right")],
 }
 
 
@@ -124,6 +125,9 @@ def main():
         while (req := recv(conn)) is not None:
             if scenario == "slow":
                 time.sleep(0.5)
+            if scenario == "mute" and req.get("type") == "post_auth_message_response":
+                g.note(event="mute")
+                time.sleep(int(os.environ.get("FAKE_GREETD_LIMIT", "120")))
             send(conn, g.handle(req))
         g.note(event="disconnected")
         conn.close()

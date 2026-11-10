@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const src = readFileSync(new URL("../src/greeter/Auth.js", import.meta.url), "utf8");
-const { initial, step } = new Function(src + "\nreturn { initial, step };")();
+const { initial, step, retryDelay } = new Function(src + "\nreturn { initial, step, retryDelay };")();
 
 const SESSION = { id: "mavernix", cmd: ["/usr/bin/start"], env: ["XDG_SESSION_TYPE=wayland"] };
 
@@ -205,4 +205,58 @@ test("a submit clears old notes", () => {
     { type: "message", text: "Password: ", error: false, required: true, echo: false },
     { type: "submit", value: "x" });
   assert.deepEqual(r.state.notes, []);
+});
+
+const info = () => run(prompted(), { type: "submit", value: "x" },
+  { type: "message", text: "Touch the key", error: false, required: false, echo: false }).state;
+
+test("a lost login service is tried again without the user", () => {
+  const r = run(prompted(), { type: "inactive" });
+  assert.deepEqual(r.effects, [{ do: "retry_later", attempt: 1 }]);
+  const second = run(r.state, { type: "retry" }, { type: "inactive" });
+  assert.equal(second.state.phase, "error");
+  assert.deepEqual(second.effects.slice(-1), [{ do: "retry_later", attempt: 2 }]);
+});
+
+test("a service error is tried again without the user", () => {
+  const r = run(prompted(), { type: "error", text: "boom" });
+  assert.deepEqual(r.effects, [{ do: "retry_later", attempt: 1 }]);
+});
+
+test("an answering service ends the count of lost tries", () => {
+  const r = run(prompted(), { type: "inactive" }, { type: "retry" },
+    { type: "message", text: "Password: ", error: false, required: true, echo: false }, { type: "inactive" });
+  assert.deepEqual(r.effects.slice(-1), [{ do: "retry_later", attempt: 1 }]);
+});
+
+test("a failed launch waits for the user", () => {
+  const r = run(prompted(), { type: "submit", value: "ok" }, { type: "ready" }, { type: "faded" },
+    { type: "error", text: "exec failed" });
+  assert.ok(!ops(r.effects).includes("retry_later"));
+});
+
+test("retry delays grow and stop at five seconds", () => {
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 50].map(retryDelay), [500, 1000, 2000, 4000, 5000, 5000, 5000]);
+});
+
+test("starting over leaves every stuck state for a fresh conversation", () => {
+  const lost = run(prompted(), { type: "inactive" }).state;
+  const failed = run(prompted(), { type: "submit", value: "bad" }, { type: "failure", text: "x" }).state;
+  const verifying = run(prompted(), { type: "submit", value: "x" }).state;
+  for (const s of [prompted(), info(), verifying, failed, lost]) {
+    const r = step(s, { type: "restart" });
+    assert.equal(r.state.phase, "starting", s.phase);
+    assert.equal(r.state.problem, "", s.phase);
+    assert.deepEqual(r.effects, [{ do: "cancel" }, { do: "clear" }, { do: "create", user: "ada" }], s.phase);
+  }
+});
+
+test("starting over does nothing without a user or once the session is on its way", () => {
+  const leaving = run(prompted(), { type: "submit", value: "ok" }, { type: "ready" }).state;
+  const launching = run(leaving, { type: "faded" }).state;
+  for (const s of [initial(true), initial(false), leaving, launching]) {
+    const r = step(s, { type: "restart" });
+    assert.deepEqual(r.state, s, s.phase);
+    assert.deepEqual(r.effects, [], s.phase);
+  }
 });

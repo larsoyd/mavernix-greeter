@@ -5,7 +5,7 @@ var TALKING = ["starting", "prompt", "info", "verifying"];
 
 function initial(available) {
     return { phase: available ? "pick" : "unavailable", user: "", session: null, prompt: "",
-             echo: false, notes: [], tries: 0, problem: "" };
+             echo: false, notes: [], tries: 0, problem: "", lost: 0 };
 }
 
 function with_(state, changes) {
@@ -19,6 +19,16 @@ function start(state, user) {
 
 function talking(state) {
     return TALKING.indexOf(state.phase) >= 0;
+}
+
+// the service went away, so ask again later without waiting for the user
+function lostService(state, problem) {
+    return { state: with_(state, { phase: "error", problem: problem, lost: state.lost + 1 }),
+             effects: [{ do: "retry_later", attempt: state.lost + 1 }] };
+}
+
+function retryDelay(attempt) {
+    return Math.min(5000, 500 * Math.pow(2, Math.min(attempt, 10) - 1));
 }
 
 function step(state, e) {
@@ -41,9 +51,9 @@ function step(state, e) {
         if (!talking(state))
             return none;
         if (e.required)
-            return { state: with_(state, { phase: "prompt", prompt: e.text, echo: !!e.echo }), effects: [] };
+            return { state: with_(state, { phase: "prompt", prompt: e.text, echo: !!e.echo, lost: 0 }), effects: [] };
         var notes = state.notes.concat([{ text: e.text, error: !!e.error }]).slice(-MAX_NOTES);
-        return { state: with_(state, { phase: "info", notes: notes }), effects: [] };
+        return { state: with_(state, { phase: "info", notes: notes, lost: 0 }), effects: [] };
     case "submit":
         if (state.phase !== "prompt")
             return none;
@@ -75,13 +85,19 @@ function step(state, e) {
             return { state: with_(state, { phase: "error", problem: "launch" }), effects: [{ do: "unfade" }] };
         if (!talking(state))
             return none;
-        return { state: with_(state, { phase: "error", problem: "service" }), effects: [] };
+        return lostService(state, "service");
     case "inactive":
         if (!talking(state))
             return none;
-        return { state: with_(state, { phase: "error", problem: "lost" }), effects: [] };
+        return lostService(state, "lost");
     case "retry":
         return state.phase === "error" && state.user ? start(state, state.user) : none;
+    case "restart":
+        if (!state.user || !talking(state) && state.phase !== "failed" && state.phase !== "error")
+            return none;
+        var again = start(state, state.user);
+        again.effects = [{ do: "cancel" }, { do: "clear" }].concat(again.effects);
+        return again;
     case "cancel":
         if (!talking(state) && state.phase !== "failed" && state.phase !== "error")
             return none;

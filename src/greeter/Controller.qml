@@ -13,7 +13,8 @@ Singleton {
     readonly property string themeDir: Quickshell.env("MAVERNIX_GREETER_THEME_DIR") || "/usr/share/mavernix-greeter/themes/neutral"
     readonly property int watchdogMs: Number(Quickshell.env("MAVERNIX_GREETER_WATCHDOG_MS")) || 30000
 
-    property var auth: Auth.initial((Quickshell.env("GREETD_SOCK") ?? "") !== "")
+    readonly property bool hasService: (Quickshell.env("GREETD_SOCK") ?? "") !== ""
+    property var auth: Auth.initial(hasService)
     property var theme: Theme.defaults()
     property bool themeReady: false
     property var users: []
@@ -57,7 +58,11 @@ Singleton {
             r.effects.forEach(run)
         }
         busy = false
-        watchdog.restart()
+        // only an answer the service owes can be late, a person may take as long as they like
+        if (["starting", "verifying"].includes(auth.phase))
+            watchdog.restart()
+        else
+            watchdog.stop()
     }
 
     function run(effect) {
@@ -74,6 +79,11 @@ Singleton {
             tell({ op: "start", cmd: effect.cmd, env: effect.env })
             break
         case "remember": helperRun(["remember", effect.user, effect.session]); break
+        case "retry_later":
+            retryTimer.interval = Auth.retryDelay(effect.attempt)
+            log(`retry attempt=${effect.attempt} in_ms=${retryTimer.interval}`)
+            retryTimer.restart()
+            break
         }
     }
 
@@ -153,9 +163,13 @@ Singleton {
     }
 
     Timer {
+        id: retryTimer
+        onTriggered: root.dispatch({ type: "retry" })
+    }
+
+    Timer {
         id: watchdog
         interval: root.watchdogMs
-        running: ["starting", "verifying"].includes(root.phase)
         onTriggered: {
             root.log(`watchdog phase=${root.phase} waited_ms=${interval}`)
             tell({ op: "cancel" })
@@ -265,7 +279,10 @@ Singleton {
             break
         case "unavailable":
             log("greetd unavailable")
-            auth = Auth.initial(false)
+            if (hasService)
+                dispatch({ type: "error", text: "unavailable" })
+            else
+                auth = Auth.initial(false)
             break
         case "message":
             log(`message kind=${e.kind}`)
@@ -313,6 +330,7 @@ Singleton {
         }
         onExited: code => {
             root.bridgeUp = false
+            root.pending = []
             if (code !== 0 && root.auth.phase !== "unavailable")
                 root.log(`bridge exited rc=${code}`)
         }

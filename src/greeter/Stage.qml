@@ -109,7 +109,7 @@ FocusScope {
         if (a.phase === "error") {
             if (a.problem === "launch") return qsTr("The session could not be started. Press Return to try again.")
             if (a.problem === "no_session") return qsTr("No desktop session is installed.")
-            return qsTr("The login service stopped answering. Press Return to try again.")
+            return qsTr("The login service stopped answering. Trying again.")
         }
         if (a.phase === "failed" || !a.notes.length) return ""
         return a.notes[a.notes.length - 1].text
@@ -120,7 +120,12 @@ FocusScope {
     Keys.onReturnPressed: if (!chosen) choose(current)
     Keys.onEnterPressed: if (!chosen) choose(current)
     Keys.onSpacePressed: if (!chosen) choose(current)
-    Keys.onEscapePressed: if (chosen && listing && entries.length > 1) Controller.back()
+    Keys.onEscapePressed: {
+        if (chosen && listing && entries.length > 1)
+            Controller.back()
+        else
+            Controller.dispatch({ type: "restart" })
+    }
 
     Connections {
         target: Controller

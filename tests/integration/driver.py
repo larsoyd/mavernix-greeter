@@ -367,6 +367,74 @@ def greetd_dies(run):
     run.shot("lost")
 
 
+def greetd_returns(run):
+    run.wait(r"phase=prompt")
+    run.greetd.kill()
+    run.greetd.wait(3)
+    run.wait(r"phase=error .*problem=lost", 8)
+    run.wait(r"retry attempt=2 ", 10)
+    (RT / "greetd.sock").unlink()
+    run.start_greetd("password")
+    run.wait(r"(?s)retry attempt=2 .*phase=prompt from=starting", 15)
+    run.wf.type("right")
+    run.wf.key("KEY_ENTER")
+    launched(run)
+    if run.greetd_log().count("event=create user=ada") != 2:
+        raise Fail("coming back did not start exactly one new conversation")
+
+
+def esc_starts_over(run):
+    run.wait(r"phase=prompt")
+    run.wf.type("half")
+    run.wf.key("KEY_ESC")
+    run.wait(r"phase=starting from=prompt event=restart", 5)
+    run.wait(r"(?s)event=restart.*phase=prompt from=starting")
+    run.wf.type("right")
+    run.wf.key("KEY_ENTER")
+    launched(run)
+    log = run.greetd_log()
+    if log.count("event=create user=ada") != 2 or log.count("event=cancel") != 1:
+        raise Fail("Escape did not cancel once and start one new conversation")
+    if 'length=5' not in log:
+        raise Fail("the half typed text was not cleared before the new password")
+
+
+def typing_retries_after_error(run):
+    run.wait(r"phase=prompt")
+    run.wf.type("right")
+    run.wf.key("KEY_ENTER")
+    run.wait(r"phase=error .*problem=launch", 10)
+    time.sleep(1)
+    run.wf.type("right")
+    run.wait(r"phase=starting from=error event=retry", 5)
+    run.wf.key("KEY_ENTER")
+    run.wait(r"(?s)event=retry.*phase=verifying", 10)
+    if not re.search(r'event=answer prompt="Password: " length=5(?s:.*)event=answer prompt="Password: " length=5', run.greetd_log()):
+        raise Fail("the password typed after the error did not reach the login service whole")
+
+
+def silent_service(run):
+    run.wait(r"phase=prompt")
+    run.wf.type("right")
+    run.wf.key("KEY_ENTER")
+    run.wait(r"watchdog phase=verifying", 6)
+    run.wait(r"phase=starting from=error event=retry", 5)
+    run.wait(r"watchdog phase=starting", 6)
+    run.wait(r"retry attempt=2 ", 5)
+
+
+def idle_at_prompt(run):
+    run.wait(r"phase=prompt")
+    time.sleep(4)
+    if re.search(r"watchdog|phase=error", run.text()):
+        raise Fail("an idle password prompt was treated as a dead login service")
+    if "event=cancel" in run.greetd_log():
+        raise Fail("an idle password prompt cancelled the login")
+    run.wf.type("right")
+    run.wf.key("KEY_ENTER")
+    launched(run)
+
+
 def two_outputs(run):
     run.wait(r"phase=prompt")
     settled_layout(run)
@@ -410,6 +478,11 @@ SCENARIOS = {
     "cancel_during_touch": ("u2f_then_password", cancel_during_touch, {"STUB_USERS": "ada,bob"}),
     "unavailable": (None, unavailable, {}),
     "greetd_dies": ("password", greetd_dies, {"MAVERNIX_GREETER_WATCHDOG_MS": "3000"}),
+    "greetd_returns": ("password", greetd_returns, {}),
+    "esc_starts_over": ("password", esc_starts_over, {}),
+    "typing_retries_after_error": ("fail_start", typing_retries_after_error, {}),
+    "silent_service": ("mute", silent_service, {"MAVERNIX_GREETER_WATCHDOG_MS": "1500"}),
+    "idle_at_prompt": ("password", idle_at_prompt, {"MAVERNIX_GREETER_WATCHDOG_MS": "1500"}),
     "two_outputs": ("password", two_outputs, {}),
 }
 
